@@ -345,8 +345,14 @@ class ProxmoxAutomationAPI(BaseAPIClient):
         )
 
     # @Decorators.is_success
-    def clone_vm(self, node: str, vm_id: int, name: str = None) -> requests.Response:
-        """"""
+    def clone_vm(
+            self,
+            node: str,
+            vm_id: int,
+            name: str = None,
+            snapname: str = None
+    ) -> requests.Response:
+        """Create VM."""
         error_map = {
             400: ParamsException,
             401: AuthAPIException,
@@ -363,8 +369,8 @@ class ProxmoxAutomationAPI(BaseAPIClient):
         if name:
             data["name"] = name
 
-        if name:
-            data["snapname"] = "name"
+        if snapname:
+            data["snapname"] = snapname
 
         # {
         #     "full": "",
@@ -549,7 +555,7 @@ if __name__ == "__main__":
     )
     api.connect()
     # res = api.get_vm_status(node="proxmox1", vm_id=101)
-    res = api.get_task_status(node="proxmox1", upid="UPID:proxmox1:0034308A:11F8AFA1:660C23DC:qmsnapshot:100:root@pam:")
+    # res = api.get_task_status(node="proxmox1", upid="UPID:proxmox1:0034308A:11F8AFA1:660C23DC:qmsnapshot:100:root@pam:")
 
     # print(get_node_by_vmid(vm_id=102))
     # print(api.version())
@@ -557,8 +563,8 @@ if __name__ == "__main__":
     #     print(i)
     #
     # print(api.get_next_id())
-    # for snap in api.get_snapshot_list(node="pve", vm_id=105):
-    #     print(snap)
+    for snap in api.get_snapshot_list(node="proxmox1", vm_id=100):
+        print(snap)
 
     # api.create_snapshot(node="proxmox1", vm_id=100, name="working")
     # api.clone_vm(node="pve", vm_id=100)

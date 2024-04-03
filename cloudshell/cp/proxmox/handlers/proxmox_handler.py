@@ -189,6 +189,13 @@ class ProxmoxHandler:
         if status == "running" or exit_status.upper() != "OK":
             raise UnsuccessfulOperationException(msg)
 
+    def get_snapshots_list(self, vm_id: int) -> list[int | bytes]:
+        """Get list of existing snapshots."""
+        node = self._get_node_by_vmid(vm_id)
+        data = self._obj.get_snapshot_list(node=node, vm_id=vm_id)
+
+        return [snap["name"] for snap in data]
+
     def create_snapshot(
             self,
             vm_id: int,

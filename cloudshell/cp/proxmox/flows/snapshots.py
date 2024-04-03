@@ -1,9 +1,10 @@
 from __future__ import annotations
 
-import datetime
+import json
 import logging
 
 from attrs import define
+from datetime import datetime
 from typing import TYPE_CHECKING
 
 from cloudshell.cp.proxmox.handlers.proxmox_handler import ProxmoxHandler
@@ -40,6 +41,12 @@ class ProxmoxSnapshotFlow:
     _si: ProxmoxHandler
     _deployed_app: BaseProxmoxDeployedApp
     _resource_config: ProxmoxResourceConfig
+
+    def get_snapshot_list(self) -> str:
+        snapshots = self._si.get_snapshots_list(
+            vm_id=int(self._deployed_app.vmdetails.uid),
+        )
+        return json.dumps(snapshots)
 
     def save_snapshot(self, snapshot_name: str, dump_memory: str) -> str:
         _validate_dump_memory_param(dump_memory)
