@@ -11,6 +11,9 @@ from cloudshell.cp.proxmox.models.base_deployment_app import (
     ProxmoxDeploymentAppAttributeNames,
     ProxmoxVMFromVMDeploymentAppAttributeNames,
     ProxmoxVMFromTemplateDeploymentAppAttributeNames,
+    ProxmoxVMFromQEMUImageDeploymentAppAttributeNames,
+    ProxmoxContainerFromLocalImageDeploymentAppAttributeNames,
+    ProxmoxContainerFromRemoteImageDeploymentAppAttributeNames,
 )
 
 
@@ -43,6 +46,27 @@ class VMFromTemplateDeployApp(BaseProxmoxDeployApp):
     DEPLOYMENT_PATH = constants.VM_FROM_TEMPLATE_DEPLOYMENT_PATH
     template_id = ResourceAttrRODeploymentPath(ATTR_NAMES.template_id)
     disk_mode = ResourceAttrRODeploymentPath(ATTR_NAMES.disk_mode)
+
+
+class VMFromQEMUImageDeployApp(BaseProxmoxDeployApp):
+    ATTR_NAMES = ProxmoxVMFromQEMUImageDeploymentAppAttributeNames
+
+    DEPLOYMENT_PATH = constants.VM_FROM_TEMPLATE_DEPLOYMENT_PATH
+    image_url = ResourceAttrRODeploymentPath(ATTR_NAMES.image_url)
+
+
+class ContainerFromLocalImageDeployApp(BaseProxmoxDeployApp):
+    ATTR_NAMES = ProxmoxContainerFromLocalImageDeploymentAppAttributeNames
+
+    DEPLOYMENT_PATH = constants.VM_FROM_TEMPLATE_DEPLOYMENT_PATH
+    container_name = ResourceAttrRODeploymentPath(ATTR_NAMES.container_name)
+
+
+class ContainerFromRemoteImageDeployApp(BaseProxmoxDeployApp):
+    ATTR_NAMES = ProxmoxContainerFromRemoteImageDeploymentAppAttributeNames
+
+    DEPLOYMENT_PATH = constants.VM_FROM_TEMPLATE_DEPLOYMENT_PATH
+    container_url = ResourceAttrRODeploymentPath(ATTR_NAMES.container_url)
 
 
 class ProxmoxDeployVMRequestActions(DeployVMRequestActions):
