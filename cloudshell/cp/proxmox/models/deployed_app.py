@@ -24,6 +24,7 @@ class BaseProxmoxDeployedApp(DeployedApp):
     behavior_during_save = ResourceAttrRODeploymentPath(ATTR_NAMES.behavior_during_save)
     auto_power_on = ResourceBoolAttrRODeploymentPath(ATTR_NAMES.auto_power_on)
     auto_power_off = ResourceBoolAttrRODeploymentPath(ATTR_NAMES.auto_power_off)
+    ip_regex = ResourceAttrRODeploymentPath(ATTR_NAMES.ip_regex)
     wait_for_ip = ResourceBoolAttrRODeploymentPath(ATTR_NAMES.wait_for_ip)
     auto_delete = ResourceBoolAttrRODeploymentPath(ATTR_NAMES.auto_delete)
     autoload = ResourceBoolAttrRODeploymentPath(ATTR_NAMES.autoload)

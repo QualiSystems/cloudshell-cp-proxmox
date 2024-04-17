@@ -12,8 +12,7 @@ from cloudshell.cp.proxmox.models.base_deployment_app import (
     ProxmoxVMFromVMDeploymentAppAttributeNames,
     ProxmoxVMFromTemplateDeploymentAppAttributeNames,
     ProxmoxVMFromQEMUImageDeploymentAppAttributeNames,
-    ProxmoxContainerFromLocalImageDeploymentAppAttributeNames,
-    ProxmoxContainerFromRemoteImageDeploymentAppAttributeNames,
+    ProxmoxContainerFromImageDeploymentAppAttributeNames,
 )
 
 
@@ -25,6 +24,7 @@ class BaseProxmoxDeployApp(DeployApp):
     behavior_during_save = ResourceAttrRODeploymentPath(ATTR_NAMES.behavior_during_save)
     auto_power_on = ResourceBoolAttrRODeploymentPath(ATTR_NAMES.auto_power_on)
     auto_power_off = ResourceBoolAttrRODeploymentPath(ATTR_NAMES.auto_power_off)
+    ip_regex = ResourceAttrRODeploymentPath(ATTR_NAMES.ip_regex)
     wait_for_ip = ResourceBoolAttrRODeploymentPath(ATTR_NAMES.wait_for_ip)
     auto_delete = ResourceBoolAttrRODeploymentPath(ATTR_NAMES.auto_delete)
     autoload = ResourceBoolAttrRODeploymentPath(ATTR_NAMES.autoload)
@@ -51,22 +51,15 @@ class VMFromTemplateDeployApp(BaseProxmoxDeployApp):
 class VMFromQEMUImageDeployApp(BaseProxmoxDeployApp):
     ATTR_NAMES = ProxmoxVMFromQEMUImageDeploymentAppAttributeNames
 
-    DEPLOYMENT_PATH = constants.VM_FROM_TEMPLATE_DEPLOYMENT_PATH
+    DEPLOYMENT_PATH = constants.VM_FROM_QEMU_DEPLOYMENT_PATH
     image_url = ResourceAttrRODeploymentPath(ATTR_NAMES.image_url)
 
 
-class ContainerFromLocalImageDeployApp(BaseProxmoxDeployApp):
-    ATTR_NAMES = ProxmoxContainerFromLocalImageDeploymentAppAttributeNames
+class ContainerFromImageDeployApp(BaseProxmoxDeployApp):
+    ATTR_NAMES = ProxmoxContainerFromImageDeploymentAppAttributeNames
 
-    DEPLOYMENT_PATH = constants.VM_FROM_TEMPLATE_DEPLOYMENT_PATH
+    DEPLOYMENT_PATH = constants.CONTAINER_FROM_IMAGE_DEPLOYMENT_PATH
     container_name = ResourceAttrRODeploymentPath(ATTR_NAMES.container_name)
-
-
-class ContainerFromRemoteImageDeployApp(BaseProxmoxDeployApp):
-    ATTR_NAMES = ProxmoxContainerFromRemoteImageDeploymentAppAttributeNames
-
-    DEPLOYMENT_PATH = constants.VM_FROM_TEMPLATE_DEPLOYMENT_PATH
-    container_url = ResourceAttrRODeploymentPath(ATTR_NAMES.container_url)
 
 
 class ProxmoxDeployVMRequestActions(DeployVMRequestActions):

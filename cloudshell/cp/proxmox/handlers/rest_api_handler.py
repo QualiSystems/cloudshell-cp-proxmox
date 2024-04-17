@@ -247,11 +247,81 @@ class ProxmoxAutomationAPI(BaseAPIClient):
         }
         # self.session.headers.update({})
 
-        return self._do_get(
+        return (self._do_get(
             path=f"cluster/resources?type={r_type}" if r_type else "cluster/resources",
             http_error_map=error_map,
             cookies={COOKIES: self.ticket}
+        ))
+
+    @Decorators.get_data()
+    def get_network_bridges(self, r_type: str = None) -> requests.Response:
+        """"""
+        error_map = {
+            400: ParamsException,
+            401: AuthAPIException,
+        }
+        # self.session.headers.update({})
+
+        return self._do_get(
+            path=f"cluster/resources?type={r_type}" if r_type else "any_bridge",
+            http_error_map=error_map,
+            cookies={COOKIES: self.ticket}
         )
+
+    @Decorators.get_data()
+    def set_user_data(
+            self,
+            node: str,
+            vm_id: int,
+            user_data: dict
+    ) -> requests.Response:
+        """"""
+        error_map = {
+            400: ParamsException,
+            401: AuthAPIException,
+        }
+
+        return self._do_post(
+            path=f"nodes/{node}/qemu/{vm_id}/config",
+            json=user_data,
+            http_error_map=error_map,
+            cookies={COOKIES: self.ticket}
+        )
+
+    @Decorators.get_data()
+    def assign_vlan(
+            self,
+            node: str,
+            network_bridge: str,
+            interface_id: str,
+            vm_id: int,
+            vlan_tag: str,
+            interface_type: str = "virtio",
+            mac_address: str = "",
+            enable_firewall: bool = True,
+    ) -> requests.Response:
+        """"""
+        error_map = {
+            400: ParamsException,
+            401: AuthAPIException,
+        }
+        data = f"{interface_type}"
+        if mac_address:
+            data += f":{network_bridge}"
+        data += f",bridge={vlan_tag},tag={vlan_tag},firewall={int(enable_firewall)}"
+        return self._do_post(
+            path=f"nodes/{node}/qemu/{vm_id}/config",
+            json={interface_id: data},
+            http_error_map=error_map,
+            cookies={COOKIES: self.ticket}
+        )
+        # return self._do_post(
+        #     path=f"nodes/{node}/network",
+        #     json={"type": vlan_type, "iface": vlan_name, "autostart": int(autostart),
+        #           "vlan-raw-device": network_bridge},
+        #     http_error_map=error_map,
+        #     cookies={COOKIES: self.ticket}
+        # )
 
     @Decorators.get_data()
     def get_next_id(self) -> requests.Response:
@@ -350,7 +420,7 @@ class ProxmoxAutomationAPI(BaseAPIClient):
             node: str,
             vm_id: int,
             name: str = None,
-            snapname: str = None
+            snapshot: str = None
     ) -> requests.Response:
         """Create VM."""
         error_map = {
@@ -360,7 +430,6 @@ class ProxmoxAutomationAPI(BaseAPIClient):
 
         new_vm_id = self.get_next_id()
         data = {
-            # "newid": 102,
             "newid": new_vm_id,
             "node": node,
             "vmid": vm_id
@@ -369,8 +438,8 @@ class ProxmoxAutomationAPI(BaseAPIClient):
         if name:
             data["name"] = name
 
-        if snapname:
-            data["snapname"] = snapname
+        if snapshot:
+            data["snapname"] = snapshot
 
         # {
         #     "full": "",
@@ -554,8 +623,8 @@ if __name__ == "__main__":
         password="Password1"
     )
     api.connect()
-    # res = api.get_vm_status(node="proxmox1", vm_id=101)
-    # res = api.get_task_status(node="proxmox1", upid="UPID:proxmox1:0034308A:11F8AFA1:660C23DC:qmsnapshot:100:root@pam:")
+    res = api.get_vm_status(node="proxmox1", vm_id=101)
+    res = api.get_task_status(node="proxmox1", upid="UPID:proxmox1:0034308A:11F8AFA1:660C23DC:qmsnapshot:100:root@pam:")
 
     # print(get_node_by_vmid(vm_id=102))
     # print(api.version())
@@ -563,8 +632,8 @@ if __name__ == "__main__":
     #     print(i)
     #
     # print(api.get_next_id())
-    for snap in api.get_snapshot_list(node="proxmox1", vm_id=100):
-        print(snap)
+    # for snap in api.get_snapshot_list(node="proxmox1", vm_id=100):
+    #     print(snap)
 
     # api.create_snapshot(node="proxmox1", vm_id=100, name="working")
     # api.clone_vm(node="pve", vm_id=100)

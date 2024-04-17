@@ -11,6 +11,7 @@ class ProxmoxDeploymentAppAttributeNames:
     auto_power_on = "Auto Power On"
     auto_power_off = "Auto Power Off"
     wait_for_ip = "Wait for IP"
+    ip_regex = "IP Regex"
     auto_delete = "Auto Delete"
     autoload = "Autoload"
     refresh_ip_timeout = "Refresh IP Timeout"
@@ -23,16 +24,10 @@ class ProxmoxVMFromQEMUImageDeploymentAppAttributeNames(
     image_url = "Image URL"
 
 
-class ProxmoxContainerFromLocalImageDeploymentAppAttributeNames(
+class ProxmoxContainerFromImageDeploymentAppAttributeNames(
     ProxmoxDeploymentAppAttributeNames
 ):
     container_name = "Container Name"
-
-
-class ProxmoxContainerFromRemoteImageDeploymentAppAttributeNames(
-    ProxmoxDeploymentAppAttributeNames
-):
-    container_url = "Container URL"
 
 
 class ProxmoxVMFromVMDeploymentAppAttributeNames(ProxmoxDeploymentAppAttributeNames):
