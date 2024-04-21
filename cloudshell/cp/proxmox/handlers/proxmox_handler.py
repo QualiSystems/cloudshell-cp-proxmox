@@ -21,7 +21,9 @@ from cloudshell.cp.proxmox.constants import (
     IP_ADDRESS,
     IP_LIST,
     IFACE_NAME,
-    MAC
+    MAC,
+    CI_USER,
+    CI_PASSWORD,
 )
 
 if TYPE_CHECKING:
@@ -112,10 +114,11 @@ class ProxmoxHandler:
             )
             raise e
 
-    def set_user_data(self, node, vm_id: int, user_data: dict) -> None:
+    def set_user_data(self, vm_id: int, username: str, password: str) -> None:
         """Set user data for Virtual Machine."""
+        node = self.get_node_by_vmid(vm_id)
+        user_data = {CI_USER: username, CI_PASSWORD: password}
         self._obj.set_user_data(node=node, vm_id=vm_id, user_data=user_data)
-
 
     def get_vm_info(self, vm_id: int) -> dict:
         """Get Virtual Machine details."""

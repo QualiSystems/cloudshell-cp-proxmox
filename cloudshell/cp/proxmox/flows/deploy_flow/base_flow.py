@@ -132,16 +132,17 @@ class AbstractProxmoxDeployVMFlow(AbstractProxmoxDeployFlow):
             vm_snapshot=snapshot,
         ).execute()
 
-    def _apply_cloud_init(self, node: str, deploy_app: BaseProxmoxDeployApp,
-                          deployed_vm_id: int):
+    def _apply_cloud_init(
+            self,
+            deploy_app: BaseProxmoxDeployApp,
+            deployed_vm_id: int
+    ) -> None:
         with self._cancellation_manager:
-            node = self.proxmox_api.get_node_by_vmid(deployed_vm_id)
             # we create customization spec here and will set it on PowerOn command
-            data = {"ciuser": deploy_app.user, "cipassword": deploy_app.password}
             self.proxmox_api.set_user_data(
-                node=node,
                 vm_id=deployed_vm_id,
-                user_data=data
+                username=deploy_app.user,
+                password=deploy_app.password
             )
 
     def _deploy(self, request_actions: DeployVMRequestActions) -> DeployAppResult:

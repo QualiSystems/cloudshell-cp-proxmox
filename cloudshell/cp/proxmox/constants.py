@@ -25,3 +25,6 @@ MAC = "hardware-address"
 IFACE_NAME = "name"
 
 SNAPSHOT_TYPE = "proxmox_snapshot"
+
+CI_USER = "ciuser"
+CI_PASSWORD = "cipassword"
