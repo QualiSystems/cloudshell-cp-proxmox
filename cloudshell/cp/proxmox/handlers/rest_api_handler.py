@@ -582,11 +582,12 @@ class ProxmoxAutomationAPI(BaseAPIClient):
         }
         # self.session.headers.update({})
 
-        return self._do_get(
-            path=f"/nodes/{node}/qemu/{vm_id}/agent/network-get-interfaces",
+        response = self._do_get(
+            path=f"/nodes/{node}/qemu/{vm_id}/config",
             http_error_map=error_map,
             cookies={COOKIES: self.ticket}
         )
+        return response
 
     @Decorators.get_data()
     def get_vm_osinfo(self, node: str, vm_id: int) -> requests.Response:
@@ -623,7 +624,7 @@ if __name__ == "__main__":
         password="Password1"
     )
     api.connect()
-    res = api.get_vm_status(node="proxmox1", vm_id=101)
+    res = api.get_vm_ifaces(node="proxmox1", vm_id=101)
     res = api.get_task_status(node="proxmox1", upid="UPID:proxmox1:0034308A:11F8AFA1:660C23DC:qmsnapshot:100:root@pam:")
 
     # print(get_node_by_vmid(vm_id=102))
