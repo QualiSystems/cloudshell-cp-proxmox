@@ -311,8 +311,36 @@ class ProxmoxAutomationAPI(BaseAPIClient):
         data += f",bridge={vlan_tag},tag={vlan_tag},firewall={int(enable_firewall)}"
         return self._do_post(
             path=f"nodes/{node}/qemu/{vm_id}/config",
-            json={interface_id: data},
+            json={f"net{interface_id}": data},
             http_error_map=error_map,
+            cookies={COOKIES: self.ticket}
+        )
+
+    @Decorators.get_data()
+    def attach_interface(
+            self,
+            node: str,
+            network_bridge: str,
+            interface_id: str,
+            vm_id: int,
+            vlan_tag: str,
+            interface_type: str = "virtio",
+            mac_address: str = "",
+            enable_firewall: bool = True,
+    ) -> requests.Response:
+        """"""
+        error_map = {
+            400: ParamsException,
+            401: AuthAPIException,
+        }
+        data = f"{interface_type}"
+        if mac_address:
+            data += f":{mac_address}"
+        data += f",bridge={network_bridge},tag={vlan_tag},firewall={int(enable_firewall)}"
+        return self._do_put(
+            path=f"nodes/{node}/qemu/{vm_id}/config",
+            http_error_map=error_map,
+            data=f"net{interface_id}={data}",
             cookies={COOKIES: self.ticket}
         )
         # return self._do_post(
@@ -604,6 +632,21 @@ class ProxmoxAutomationAPI(BaseAPIClient):
             cookies={COOKIES: self.ticket}
         )
 
+    @Decorators.get_data()
+    def get_vm_config(self, node: str, vm_id: int) -> requests.Response:
+        """"""
+        error_map = {
+            400: ParamsException,
+            401: AuthAPIException,
+        }
+        # self.session.headers.update({})
+
+        return self._do_get(
+            path=f"/nodes/{node}/qemu/{vm_id}/config",
+            http_error_map=error_map,
+            cookies={COOKIES: self.ticket}
+        )
+
 
 if __name__ == "__main__":
     # session = requests.Session()
@@ -624,7 +667,9 @@ if __name__ == "__main__":
         password="Password1"
     )
     api.connect()
-    res = api.get_vm_ifaces(node="proxmox1", vm_id=101)
+    res = api.attach_interface(node="proxmox1", vm_id=101, network_bridge="vmbr1",
+                               interface_id="3", vlan_tag="65")
+    res1 = api.get_vm_ifaces(node="proxmox1", vm_id=101)
     res = api.get_task_status(node="proxmox1", upid="UPID:proxmox1:0034308A:11F8AFA1:660C23DC:qmsnapshot:100:root@pam:")
 
     # print(get_node_by_vmid(vm_id=102))

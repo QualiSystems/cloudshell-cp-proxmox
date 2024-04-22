@@ -101,8 +101,8 @@ class ProxmoxConnectivityFlow(AbcCloudProviderConnectivityFlow):
         def get_vnic_info(vnic: dict) -> VnicInfo:
             return VnicInfo(
                 vnic.get("name"),
-                int(self.vnic_name_to_index(vnic.name, vm)),
-                self._network_can_be_replaced(vnic.network),
+                int(vnic.get("index")),
+                True,
             )
 
         return tuple(map(get_vnic_info, self._api.get_vm_ifaces_info(vm_id)))
@@ -117,12 +117,13 @@ class ProxmoxConnectivityFlow(AbcCloudProviderConnectivityFlow):
         network = self._networks[net_settings.name]
 
         logger.info(f"Connecting {network} to the {target}.{vnic_name} iface")
-        try:
-            vnic = target.get_vnic(vnic_name)
-        except VnicNotFound:
-            vnic = create_new_vnic(target, network, vnic_name)
-        else:
-            vnic.connect(network)
+        # try:
+        #     vnic = target.get_vnic(vnic_name)
+        # except VnicNotFound:
+        #     vnic = create_new_vnic(target, network, vnic_name)
+        # else:
+        #     vnic.connect(network)
+        mac = ""
 
         return vnic.mac_address
 

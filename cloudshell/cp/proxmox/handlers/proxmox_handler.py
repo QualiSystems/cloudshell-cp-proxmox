@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import logging
+import re
 import time
 from functools import cached_property, partial
 from typing import TYPE_CHECKING, Any
@@ -140,32 +141,49 @@ class ProxmoxHandler:
             )
             raise e
 
-    def get_vm_ifaces_info(self, vm_id: int) -> list[dict]:
-        """Get Virtual Machine network interfaces details."""
+    def get_vm_ifaces_info(self, vm_id):
+        dataregexp = re.compile(
+            r"^(?P<type>\w+)=(?P<mac>([0-9A-Fa-f]{2}[:-]){5}([0-9A-Fa-f]{2})+),"
+            r".*bridge=(?P<bridge>\w+),"
+            r".*tag=(?P<vlan>\d+)(,.*)?$"
+        )
+        #  net0: virtio=02:00:00:00:00:01,bridge=vmbr0,tag=10
+        #  [model=](e1000 | e1000-82540em | e1000-82544gc | e1000-82545em | e1000e
+        #  | i82551 | i82557b | i82559er | ne2k_isa | ne2k_pci | pcnet | rtl8139
+        #  | virtio | vmxnet3) [,bridge=<bridge>] [,firewall=<boolean>]
+        #  [,link_down=<boolean>] [,macaddr=<XX:XX:XX:XX:XX:XX>] [,mtu=<integer>]
+        #  [,queues=<integer>] [,rate=<number>] [,tag=<integer>]
+        #  [,trunks=<vlanid[;vlanid...]>]
+        result = {}
         try:
             node = self.get_node_by_vmid(vm_id)
-            data = self._obj.get_net_ifaces(node=node, vm_id=vm_id)
+            config = self._obj.get_vm_config(node=node, vm_id=vm_id)
+            guest_data = self._obj.get_net_ifaces(node=node, vm_id=vm_id)
+            guest_ifaces = {x.get(MAC): x for x in guest_data.get("result", [])}
+            for k, v in config.items():
+                if k.startswith("net"):
+                    vnic_data = dataregexp.search(v).groupdict()
+                    mac = vnic_data.pop("mac")
+                    iface = guest_ifaces.get(mac)
+                    iface_ipv4 = "Undefined"
+                    iface_ipv6 = "Undefined"
+                    if vnic_data:
+                        for ip in iface.get(IP_LIST, []):
+                            if ip.get(ADDRESS_TYPE) == "ipv4":
+                                iface_ipv4 = ip.get(IP_ADDRESS)
+                            elif ip.get(ADDRESS_TYPE) == "ipv6":
+                                iface_ipv6 = ip.get(IP_ADDRESS)
+                        result[mac] = vnic_data.update(
+                            {"name": k,
+                             "index": k.replace("net", ""),
+                             "guest_name": iface.get(IFACE_NAME),
+                             "mac": iface.get(MAC),
+                             "ipv4": iface_ipv4,
+                             "ipv6": iface_ipv6,
+                             }
+                        )
 
-            ifaces = []
-            for iface in data.get("result", []):
-                iface_ipv4 = "Undefined"
-                iface_ipv6 = "Undefined"
-                for ip in iface.get(IP_LIST, []):
-                    if ip.get(ADDRESS_TYPE) == "ipv4":
-                        iface_ipv4 = ip.get(IP_ADDRESS)
-                    elif ip.get(ADDRESS_TYPE) == "ipv6":
-                        iface_ipv6 = ip.get(IP_ADDRESS)
-
-                ifaces.append(
-                    {
-                        "name": iface.get(IFACE_NAME),
-                        "mac": iface.get(MAC),
-                        "ipv4": iface_ipv4,
-                        "ipv6": iface_ipv6,
-                    }
-                )
-
-            return ifaces
+            return result
         except VmDoesNotExistException as e:
             logger.error(
                 f"Virtual machine with vm_id {vm_id} doesn't exist."
@@ -208,6 +226,17 @@ class ProxmoxHandler:
 
         if status == "running" or exit_status.upper() != "OK":
             raise UnsuccessfulOperationException(msg)
+
+    def attach_interface(self, vm_id: int, vnic_id: int) -> None:
+        """Attach interface to Virtual Machine."""
+        node = self.get_node_by_vmid(vm_id)
+        upid = self._obj.attach_interface(node=node, vm_id=vm_id, vnic_id=vnic_id)
+
+        self._task_waiter(
+            node=node,
+            upid=upid,
+            msg=f"Failed to attach interface {vnic_id} during {{attempt*timeout}} sec"
+        )
 
     def get_snapshots_list(self, vm_id: int) -> list[int | bytes]:
         """Get list of existing snapshots."""
