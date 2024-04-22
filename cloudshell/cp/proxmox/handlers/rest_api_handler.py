@@ -340,16 +340,9 @@ class ProxmoxAutomationAPI(BaseAPIClient):
         return self._do_put(
             path=f"nodes/{node}/qemu/{vm_id}/config",
             http_error_map=error_map,
-            data=f"net{interface_id}={data}",
+            json={f"net{interface_id}": f"{data}"},
             cookies={COOKIES: self.ticket}
         )
-        # return self._do_post(
-        #     path=f"nodes/{node}/network",
-        #     json={"type": vlan_type, "iface": vlan_name, "autostart": int(autostart),
-        #           "vlan-raw-device": network_bridge},
-        #     http_error_map=error_map,
-        #     cookies={COOKIES: self.ticket}
-        # )
 
     @Decorators.get_data()
     def get_next_id(self) -> requests.Response:
