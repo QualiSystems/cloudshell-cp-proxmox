@@ -45,9 +45,11 @@ class ProxmoxHandler:
         return self
 
     @classmethod
-    def from_config(cls, conf: ProxmoxResourceConfig,
-                    instance_type=InstanceType.VM) -> (
-            ProxmoxHandler):
+    def from_config(
+            cls,
+            conf: ProxmoxResourceConfig,
+            instance_type: InstanceType = InstanceType.VM
+    ) -> ProxmoxHandler:
         return cls.connect(conf.address, conf.user, conf.password, instance_type)
 
     @classmethod
@@ -236,8 +238,11 @@ class ProxmoxHandler:
     def attach_interface(self, instance_id: int, vnic_id: int) -> None:
         """Attach interface to Virtual Machine."""
         node = self.get_node_by_vmid(instance_id)
-        upid = self._obj.attach_interface(node=node, instance_id=instance_id,
-                                          vnic_id=vnic_id)
+        upid = self._obj.attach_interface(
+            node=node,
+            instance_id=instance_id,
+            vnic_id=vnic_id
+        )
 
         self._task_waiter(
             node=node,
@@ -297,8 +302,10 @@ class ProxmoxHandler:
             vm_name: str,
             node: str,
             snapshot: str = None,
-            user_data: dict | None = None,
-    ) -> str:
+            full: bool = None,
+            storage: str = None,
+            target: str = None,
+    ) -> int:
         """Clone Virtual Machine."""
         new_instance_id = self._obj.clone_instance(
             node=node,
@@ -306,20 +313,23 @@ class ProxmoxHandler:
             name=vm_name,
             snapshot=snapshot,
         )
-
         self._task_waiter(
             node=node,
             upid=str(new_instance_id),
             msg=f"Failed to clone VM {vm_name} during {{attempt*timeout}} sec"
         )
-        return self.get_node_by_vmid(int(new_instance_id))
+
+        return new_instance_id
 
     def delete_snapshot(self, instance_id: int, name: str):
         """Delete Virtual Machine snapshot."""
         node = self.get_node_by_vmid(instance_id)
 
-        upid = self._obj.delete_snapshot(node=node, instance_id=instance_id,
-                                         name=name)
+        upid = self._obj.delete_snapshot(
+            node=node,
+            instance_id=instance_id,
+            name=name
+        )
 
         self._task_waiter(
             node=node,

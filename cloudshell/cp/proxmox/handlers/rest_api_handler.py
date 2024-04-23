@@ -444,8 +444,11 @@ class ProxmoxAutomationAPI(BaseAPIClient):
             node: str,
             instance_id: int,
             name: str = None,
-            snapshot: str = None
-    ) -> requests.Response:
+            snapshot: str = None,
+            full: bool = None,
+            storage: str = None,
+            target: str = None,
+    ) -> int:
         """Create VM."""
         error_map = {
             400: ParamsException,
@@ -465,14 +468,19 @@ class ProxmoxAutomationAPI(BaseAPIClient):
         if snapshot:
             data["snapname"] = snapshot
 
-        # {
-        #     "full": "",
-        #     "name": "",
-        #     "snapname": "",
-        #     "format": "",
-        #     "storage": "",
-        #     "target": "",
-        # }
+        # Create a full copy of all disks.
+        # This is always done when you clone a normal VM.
+        # For VM templates, we try to create a linked clone by default.
+        if full:
+            data["full"] = True
+
+            # Target storage for full clone.
+            if storage:
+                data["storage"] = storage
+
+        # Target node. Only allowed if the original VM is on shared storage.
+        if target:
+            data["target"] = target
 
         self._do_post(
             path=f"nodes/{node}/{self.instance_type.value}/{instance_id}/clone",
@@ -481,7 +489,7 @@ class ProxmoxAutomationAPI(BaseAPIClient):
             cookies={COOKIES: self.ticket}
         )
 
-        return new_instance_id
+        return int(new_instance_id)
 
     # @Decorators.is_success
     def delete_instance(
