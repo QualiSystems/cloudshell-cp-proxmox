@@ -622,7 +622,7 @@ class ProxmoxAutomationAPI(BaseAPIClient):
         return self._do_post(
             path=f"nodes/{node}/termproxy",
             json={
-                "node": node,
+                "node": "proxmox1",
                 # "websocket": True
             },
             http_error_map=error_map,
