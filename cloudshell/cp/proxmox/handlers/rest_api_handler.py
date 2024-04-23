@@ -20,6 +20,7 @@ from cloudshell.cp.proxmox.exceptions import (
 )
 
 from cloudshell.cp.proxmox.constants import COOKIES, TOKEN
+from cloudshell.cp.proxmox.utils.instance_type import InstanceType
 
 
 @define
@@ -111,9 +112,11 @@ class BaseAPIClient:
         )
 
 
+@define
 class ProxmoxAutomationAPI(BaseAPIClient):
-    ticket: str
-    token: str
+    ticket: str | None = None
+    token: str | None = None
+    instance_type: InstanceType = field(on_setattr=frozen, default=InstanceType.VM)
 
     class Decorators:
         @classmethod
@@ -159,7 +162,7 @@ class ProxmoxAutomationAPI(BaseAPIClient):
             return inner
 
         @classmethod
-        def is_vm_locked(
+        def is_instance_locked(
             cls,
             retries: int = 60,
             timeout: int = 5,
@@ -272,7 +275,7 @@ class ProxmoxAutomationAPI(BaseAPIClient):
     def set_user_data(
             self,
             node: str,
-            vm_id: int,
+            instance_id: int,
             user_data: dict
     ) -> requests.Response:
         """"""
@@ -282,7 +285,7 @@ class ProxmoxAutomationAPI(BaseAPIClient):
         }
 
         return self._do_post(
-            path=f"nodes/{node}/qemu/{vm_id}/config",
+            path=f"nodes/{node}/{self.instance_type.value}/{instance_id}/config",
             json=user_data,
             http_error_map=error_map,
             cookies={COOKIES: self.ticket}
@@ -294,7 +297,7 @@ class ProxmoxAutomationAPI(BaseAPIClient):
             node: str,
             network_bridge: str,
             interface_id: str,
-            vm_id: int,
+            instance_id: int,
             vlan_tag: str,
             interface_type: str = "virtio",
             mac_address: str = "",
@@ -310,7 +313,7 @@ class ProxmoxAutomationAPI(BaseAPIClient):
             data += f":{network_bridge}"
         data += f",bridge={vlan_tag},tag={vlan_tag},firewall={int(enable_firewall)}"
         return self._do_post(
-            path=f"nodes/{node}/qemu/{vm_id}/config",
+            path=f"nodes/{node}/{self.instance_type.value}/{instance_id}/config",
             json={f"net{interface_id}": data},
             http_error_map=error_map,
             cookies={COOKIES: self.ticket}
@@ -322,7 +325,7 @@ class ProxmoxAutomationAPI(BaseAPIClient):
             node: str,
             network_bridge: str,
             interface_id: str,
-            vm_id: int,
+            instance_id: int,
             vlan_tag: str,
             interface_type: str = "virtio",
             mac_address: str = "",
@@ -338,7 +341,7 @@ class ProxmoxAutomationAPI(BaseAPIClient):
             data += f":{mac_address}"
         data += f",bridge={network_bridge},tag={vlan_tag},firewall={int(enable_firewall)}"
         return self._do_put(
-            path=f"nodes/{node}/qemu/{vm_id}/config",
+            path=f"nodes/{node}/{self.instance_type.value}/{instance_id}/config",
             http_error_map=error_map,
             json={f"net{interface_id}": f"{data}"},
             cookies={COOKIES: self.ticket}
@@ -359,8 +362,8 @@ class ProxmoxAutomationAPI(BaseAPIClient):
             cookies={COOKIES: self.ticket}
         )
 
-    @Decorators.is_vm_locked()
-    def get_vm_status(self, node: str, vm_id: int) -> requests.Response:
+    @Decorators.is_instance_locked()
+    def get_instance_status(self, node: str, instance_id: int) -> requests.Response:
         """Get Virtual Machine Status."""
         error_map = {
             400: ParamsException,
@@ -369,13 +372,13 @@ class ProxmoxAutomationAPI(BaseAPIClient):
         # self.session.headers.update({})
 
         return self._do_get(
-            path=f"nodes/{node}/qemu/{vm_id}/status/current",
+            path=f"nodes/{node}/{self.instance_type.value}/{instance_id}/status/current",
             http_error_map=error_map,
             cookies={COOKIES: self.ticket}
         )
 
     @Decorators.get_data(retries=60)
-    def get_vm_ifaces(self, node: str, vm_id: int) -> requests.Response:
+    def get_instance_ifaces(self, node: str, instance_id: int) -> requests.Response:
         """Get Virtual Machine Status."""
         error_map = {
             400: ParamsException,
@@ -384,24 +387,24 @@ class ProxmoxAutomationAPI(BaseAPIClient):
         # self.session.headers.update({})
 
         return self._do_get(
-            path=f"nodes/{node}/qemu/{vm_id}/agent/network-get-interfaces",
+            path=f"nodes/{node}/{self.instance_type.value}/{instance_id}/agent/network-get-interfaces",
             http_error_map=error_map,
             cookies={COOKIES: self.ticket}
         )
 
-    def start_vm(self, node: str, vm_id: int) -> None:
+    def start_vm(self, node: str, instance_id: int) -> None:
         """Start Virtual Machine."""
         error_map = {
             400: ParamsException,
             401: AuthAPIException,
         }
         self._do_post(
-            path=f"nodes/{node}/qemu/{vm_id}/status/start",
+            path=f"nodes/{node}/{self.instance_type.value}/{instance_id}/status/start",
             http_error_map=error_map,
             cookies={COOKIES: self.ticket}
         )
 
-    def stop_vm(self, node: str, vm_id: int) -> None:
+    def stop_vm(self, node: str, instance_id: int) -> None:
         """Stop virtual machine.
 
         The qemu process will exit immediately.
@@ -413,12 +416,12 @@ class ProxmoxAutomationAPI(BaseAPIClient):
             401: AuthAPIException,
         }
         self._do_post(
-            path=f"nodes/{node}/qemu/{vm_id}/status/stop",
+            path=f"nodes/{node}/{self.instance_type.value}/{instance_id}/status/stop",
             http_error_map=error_map,
             cookies={COOKIES: self.ticket}
         )
 
-    def shutdown_vm(self, node: str, vm_id: int) -> None:
+    def shutdown_vm(self, node: str, instance_id: int) -> None:
         """Shutdown virtual machine.
 
         This is similar to pressing the power button on a physical machine.
@@ -430,7 +433,7 @@ class ProxmoxAutomationAPI(BaseAPIClient):
             401: AuthAPIException,
         }
         self._do_post(
-            path=f"nodes/{node}/qemu/{vm_id}/status/shutdown",
+            path=f"nodes/{node}/{self.instance_type.value}/{instance_id}/status/shutdown",
             http_error_map=error_map,
             cookies={COOKIES: self.ticket}
         )
@@ -439,7 +442,7 @@ class ProxmoxAutomationAPI(BaseAPIClient):
     def clone_vm(
             self,
             node: str,
-            vm_id: int,
+            instance_id: int,
             name: str = None,
             snapshot: str = None
     ) -> requests.Response:
@@ -449,11 +452,11 @@ class ProxmoxAutomationAPI(BaseAPIClient):
             401: AuthAPIException,
         }
 
-        new_vm_id = self.get_next_id()
+        new_instance_id = self.get_next_id()
         data = {
-            "newid": new_vm_id,
+            "newid": new_instance_id,
             "node": node,
-            "vmid": vm_id
+            "vmid": instance_id
         }
 
         if name:
@@ -472,19 +475,19 @@ class ProxmoxAutomationAPI(BaseAPIClient):
         # }
 
         self._do_post(
-            path=f"nodes/{node}/qemu/{vm_id}/clone",
+            path=f"nodes/{node}/{self.instance_type.value}/{instance_id}/clone",
             json=data,
             http_error_map=error_map,
             cookies={COOKIES: self.ticket}
         )
 
-        return new_vm_id
+        return new_instance_id
 
     # @Decorators.is_success
     def delete_vm(
             self,
             node: str,
-            vm_id: int,
+            instance_id: int,
             destroy_unref_disk: bool = False,
             purge: bool = False,
             skip_lock: bool = False
@@ -497,13 +500,13 @@ class ProxmoxAutomationAPI(BaseAPIClient):
         }
 
         return self._do_delete(
-            path=f"nodes/{node}/qemu/{vm_id}?purge={int(purge)}&destroy-unreferenced-disks={int(destroy_unref_disk)}",
+            path=f"nodes/{node}/{self.instance_type.value}/{instance_id}?purge={int(purge)}&destroy-unreferenced-disks={int(destroy_unref_disk)}",
             http_error_map=error_map,
             cookies={COOKIES: self.ticket}
         )
 
     @Decorators.get_data()
-    def get_snapshot_list(self, node: str, vm_id: int) -> requests.Response:
+    def get_snapshot_list(self, node: str, instance_id: int) -> requests.Response:
         """"""
         error_map = {
             400: ParamsException,
@@ -512,7 +515,7 @@ class ProxmoxAutomationAPI(BaseAPIClient):
         # self.session.headers.update({})
 
         return self._do_get(
-            path=f"nodes/{node}/qemu/{vm_id}/snapshot",
+            path=f"nodes/{node}/{self.instance_type.value}/{instance_id}/snapshot",
             http_error_map=error_map,
             cookies={COOKIES: self.ticket}
         )
@@ -521,9 +524,9 @@ class ProxmoxAutomationAPI(BaseAPIClient):
     def create_snapshot(
             self,
             node: str,
-            vm_id: int,
+            instance_id: int,
             snapshot_name: str,
-            vm_state: int = 0
+            instance_state: int = 0
     ) -> requests.Response:
         """"""
         error_map = {
@@ -533,8 +536,8 @@ class ProxmoxAutomationAPI(BaseAPIClient):
         # self.session.headers.update({})
 
         return self._do_post(
-            path=f"nodes/{node}/qemu/{vm_id}/snapshot",
-            json={"snapname": snapshot_name, "vmstate": vm_state},
+            path=f"nodes/{node}/{self.instance_type.value}/{instance_id}/snapshot",
+            json={"snapname": snapshot_name, "vmstate": instance_state},
             http_error_map=error_map,
             cookies={COOKIES: self.ticket}
         )
@@ -543,7 +546,7 @@ class ProxmoxAutomationAPI(BaseAPIClient):
     def restore_from_snapshot(
             self,
             node: str,
-            vm_id: int,
+            instance_id: int,
             snapshot_name: str,
     ) -> requests.Response:
         """"""
@@ -554,7 +557,7 @@ class ProxmoxAutomationAPI(BaseAPIClient):
         # self.session.headers.update({})
 
         return self._do_post(
-            path=f"nodes/{node}/qemu/{vm_id}/snapshot/{snapshot_name}/rollback",
+            path=f"nodes/{node}/{self.instance_type.value}/{instance_id}/snapshot/{snapshot_name}/rollback",
             http_error_map=error_map,
             cookies={COOKIES: self.ticket}
         )
@@ -563,7 +566,7 @@ class ProxmoxAutomationAPI(BaseAPIClient):
     def delete_snapshot(
             self,
             node: str,
-            vm_id: int,
+            instance_id: int,
             snapshot_name: str,
     ) -> requests.Response:
         """"""
@@ -574,7 +577,7 @@ class ProxmoxAutomationAPI(BaseAPIClient):
         # self.session.headers.update({})
 
         return self._do_delete(
-            path=f"nodes/{node}/qemu/{vm_id}/snapshot/{snapshot_name}",
+            path=f"nodes/{node}/{self.instance_type.value}/{instance_id}/snapshot/{snapshot_name}",
             http_error_map=error_map,
             cookies={COOKIES: self.ticket}
         )
@@ -595,7 +598,7 @@ class ProxmoxAutomationAPI(BaseAPIClient):
         )
 
     @Decorators.get_data()
-    def get_net_ifaces(self, node: str, vm_id: int) -> requests.Response:
+    def get_net_ifaces(self, node: str, instance_id: int) -> requests.Response:
         """"""
         error_map = {
             400: ParamsException,
@@ -604,29 +607,30 @@ class ProxmoxAutomationAPI(BaseAPIClient):
         # self.session.headers.update({})
 
         response = self._do_get(
-            path=f"/nodes/{node}/qemu/{vm_id}/config",
+            path=f"/nodes/{node}/{self.instance_type.value}/{instance_id}/config",
             http_error_map=error_map,
             cookies={COOKIES: self.ticket}
         )
         return response
 
     @Decorators.get_data()
-    def get_vm_osinfo(self, node: str, vm_id: int) -> requests.Response:
-        """"""
+    def get_vnc_shell(self, node):
         error_map = {
             400: ParamsException,
             401: AuthAPIException,
         }
-        # self.session.headers.update({})
-
-        return self._do_get(
-            path=f"/nodes/{node}/qemu/{vm_id}/agent/network-get-interfaces",
+        return self._do_post(
+            path=f"nodes/{node}/termproxy",
+            json={
+                "node": "proxmox1",
+                # "websocket": True
+            },
             http_error_map=error_map,
             cookies={COOKIES: self.ticket}
         )
 
     @Decorators.get_data()
-    def get_vm_config(self, node: str, vm_id: int) -> requests.Response:
+    def get_instance_osinfo(self, node: str, instance_id: int) -> requests.Response:
         """"""
         error_map = {
             400: ParamsException,
@@ -635,7 +639,22 @@ class ProxmoxAutomationAPI(BaseAPIClient):
         # self.session.headers.update({})
 
         return self._do_get(
-            path=f"/nodes/{node}/qemu/{vm_id}/config",
+            path=f"/nodes/{node}/{self.instance_type.value}/{instance_id}/agent/network-get-interfaces",
+            http_error_map=error_map,
+            cookies={COOKIES: self.ticket}
+        )
+
+    @Decorators.get_data()
+    def get_instance_config(self, node: str, instance_id: int) -> requests.Response:
+        """"""
+        error_map = {
+            400: ParamsException,
+            401: AuthAPIException,
+        }
+        # self.session.headers.update({})
+
+        return self._do_get(
+            path=f"/nodes/{node}/{self.instance_type.value}/{instance_id}/config",
             http_error_map=error_map,
             cookies={COOKIES: self.ticket}
         )
@@ -657,34 +676,35 @@ if __name__ == "__main__":
         address="192.168.105.21",
         # address="192.168.26.120",
         username="root@pam",
-        password="Password1"
+        password="Password1",
+        # instance_type=InstanceType.VM
     )
     api.connect()
-    res = api.attach_interface(node="proxmox1", vm_id=101, network_bridge="vmbr1",
+    res = api.attach_interface(node="proxmox1", instance_id=101, network_bridge="vmbr1",
                                interface_id="3", vlan_tag="65")
-    res1 = api.get_vm_ifaces(node="proxmox1", vm_id=101)
+    res1 = api.get_instance_ifaces(node="proxmox1", instance_id=101)
     res = api.get_task_status(node="proxmox1", upid="UPID:proxmox1:0034308A:11F8AFA1:660C23DC:qmsnapshot:100:root@pam:")
 
-    # print(get_node_by_vmid(vm_id=102))
+    # print(get_node_by_vmid(instance_id=102))
     # print(api.version())
     # for i in api.get_resources(r_type="vm"):
     #     print(i)
     #
     # print(api.get_next_id())
-    # for snap in api.get_snapshot_list(node="proxmox1", vm_id=100):
+    # for snap in api.get_snapshot_list(node="proxmox1", instance_id=100):
     #     print(snap)
 
-    # api.create_snapshot(node="proxmox1", vm_id=100, name="working")
-    # api.clone_vm(node="pve", vm_id=100)
+    # api.create_snapshot(node="proxmox1", instance_id=100, name="working")
+    # api.clone_vm(node="pve", instance_id=100)
 
     # for k,v in api.get_node_report(node="proxmox8").items():
     #     print(f"{k} : {v}")
     # print(api.get_node_report(node="proxmox1"))
-    # print(api.get_vm_ifaces(node="pve", vm_id=102))
-    # print(api.get_vm_status(node="pve", vm_id=103))
-    # for vm_id in [102, 103, 104]:
-    #     api.delete_vm(node="pve", vm_id=vm_id)
-    # print(api.delete_vm(node="proxmox1", vm_id=120))
+    # print(api.get_instance_ifaces(node="pve", instance_id=102))
+    # print(api.get_instance_status(node="pve", instance_id=103))
+    # for instance_id in [102, 103, 104]:
+    #     api.delete_vm(node="pve", instance_id=instance_id)
+    # print(api.delete_vm(node="proxmox1", instance_id=120))
 
     # print(api.ticket)
     # print(api.token)
