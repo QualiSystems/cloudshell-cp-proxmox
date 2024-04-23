@@ -4,6 +4,7 @@ from urllib.parse import urlencode
 import ssl
 import warnings
 import websocket
+from cloudshell.cli.session.helper.normalize_buffer import normalize_buffer
 
 from cloudshell.cp.proxmox.handlers.rest_api_handler import ProxmoxAutomationAPI
 
@@ -32,7 +33,7 @@ port: str = termproxy.get('port')
 
 cookie = api.token
 headers = {
-    'Authorization': f'PVEAPIToken={proxmox_user}',
+    'Authorization': f'PVEAPIToken={api.token}',
     'Sec-WebSocket-Protocol': 'bianry',
     'Pragma': 'no-cache',
     'Cache-Control': 'no-cache',
@@ -50,19 +51,28 @@ query_params = {'port': port, 'vncticket': ticket}
 
 ws = websocket.create_connection(url=f"{websocket_url}?{urlencode(query_params)}", sslopt=opts, header=headers)
 
-ws.send(f'{proxmox_user}:{ticket}\n')
+handshake = f"{proxmox_user}!{api.token}:{ticket}\n"
+# handshake = f"{proxmox_user}:{ticket}\n"
+
+ws.send(handshake)
 print(ws.getstatus())
 print(ws.recv_data())
-ws.send('1:86:24:')
-print(ws.getstatus())
-print(ws.recv_data())
-ws.ping()
-ws.send_bytes(bytearray('lxc-info -n 108 -i\n', 'utf-8'))
-print(ws.getstatus())
-ws.ping()
-print(ws.recv_data())
-print(ws.recv_data())
-ws.ping()
+# ws.send('1:86:24:')
+# print(ws.getstatus())
+# print(ws.recv_data())
+# ws.ping()
+# ws.send_text('lxc-info -n 108 -i\n')
+# ws.send_bytes(bytearray('lxc-info -n 108 -i\n', 'utf-8'))
+# ws.send('1:86:24:')
+# print(ws.getstatus())
+# ws.ping()
+# print(ws.recv_data())
+# print(ws.recv_data())
+# print(ws.recv_data())
+# print(ws.recv_data())
+# print(ws.recv_data())
+
+# ws.ping()
 # print(ws.recv_data())
 # print(ws.recv_data())
 # print(ws.recv_data())
