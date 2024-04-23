@@ -15,14 +15,14 @@ def refresh_ip(
     cancellation_manager: CancellationContextManager,
 ) -> str:
     api = ProxmoxHandler.from_config(resource_conf)
-    vm_id = int(deployed_app.vmdetails.uid)
-    if api.get_vm_status(vm_id).lower() != "running":
-        raise VmIsNotPowered(vm_id)
+    instance_id = int(deployed_app.vmdetails.uid)
+    if api.get_instance_status(instance_id).lower() != "running":
+        raise VmIsNotPowered(instance_id)
 
     actions = VMNetworkActions(resource_conf, cancellation_manager)
     ip = actions.get_vm_ip(
             api,
-            vm_id,
+            instance_id,
             ip_regex=deployed_app.ip_regex,
             timeout=deployed_app.refresh_ip_timeout,
         )

@@ -44,7 +44,7 @@ class ProxmoxSnapshotFlow:
 
     def get_snapshot_list(self) -> str:
         snapshots = self._si.get_snapshots_list(
-            vm_id=int(self._deployed_app.vmdetails.uid),
+            instance_id=int(self._deployed_app.vmdetails.uid),
         )
         return json.dumps(snapshots)
 
@@ -52,7 +52,7 @@ class ProxmoxSnapshotFlow:
         _validate_dump_memory_param(dump_memory)
         dump_memory = dump_memory == "Yes"
         snapshot_path = self._si.create_snapshot(
-            vm_id=int(self._deployed_app.vmdetails.uid),
+            instance_id=int(self._deployed_app.vmdetails.uid),
             name=snapshot_name,
             dump_memory=dump_memory
         )
@@ -64,7 +64,7 @@ class ProxmoxSnapshotFlow:
         snapshot_path: str,
     ):
         self._si.restore_from_snapshot(
-            vm_id=int(self._deployed_app.vmdetails.uid),
+            instance_id=int(self._deployed_app.vmdetails.uid),
             name=snapshot_path,
         )
         cs_api.SetResourceLiveStatus(self._deployed_app.name, "Offline", "Powered Off")
@@ -91,6 +91,6 @@ class ProxmoxSnapshotFlow:
 
     def remove_snapshot(self, snapshot_name: str) -> None:
         self._si.delete_snapshot(
-            vm_id=int(self._deployed_app.vmdetails.uid),
+            instance_id=int(self._deployed_app.vmdetails.uid),
             name=snapshot_name,
         )

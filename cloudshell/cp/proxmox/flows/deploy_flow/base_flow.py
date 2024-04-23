@@ -7,8 +7,11 @@ from cloudshell.api.cloudshell_api import CloudShellAPISession, ReservationInfo
 from cloudshell.cp.core.cancellation_manager import CancellationContextManager
 from cloudshell.cp.core.flows import AbstractDeployFlow
 from cloudshell.cp.core.request_actions import DeployVMRequestActions
-from cloudshell.cp.core.request_actions.models import VmDetailsData, DeployAppResult, \
+from cloudshell.cp.core.request_actions.models import (
+    VmDetailsData,
+    DeployAppResult,
     Attribute
+)
 from cloudshell.cp.core.rollback import RollbackCommandsManager
 from cloudshell.cp.core.utils.name_generator import NameGenerator
 
@@ -41,7 +44,9 @@ class AbstractProxmoxDeployFlow(AbstractDeployFlow):
 
     @abstractmethod
     def _prepare_vm_details_data(
-            self, deployed_vm_id: int, deploy_app: BaseProxmoxDeployApp
+            self,
+            deployed_vm_id: int,
+            deploy_app: BaseProxmoxDeployApp
     ) -> VmDetailsData:
         """Prepare CloudShell VM Details model."""
         pass
@@ -86,67 +91,27 @@ class AbstractProxmoxDeployFlow(AbstractDeployFlow):
             deployedAppAttributes=self._prepare_app_attrs(deploy_app, deployed_vm_id),
         )
 
-
-class AbstractProxmoxDeployVMFlow(AbstractProxmoxDeployFlow):
     @abstractmethod
-    def _get_vm_template(
-            self, deploy_app: BaseProxmoxDeployApp
-    ):
-        """Get VM template to clone VM from."""
-        pass
-
-    def _get_vm_snapshot(
-            self, deploy_app: BaseProxmoxDeployApp, vm_template: str
-    ) -> str:
-        """Get VM Snapshot to clone from."""
-        pass
-
     def _create_vm(
-            self,
-            deploy_app: BaseProxmoxDeployApp,
-            vm_name: str,
-            # vm_resource_pool: ResourcePoolHandler,
-            vm_storage: str,
-            # vm_folder: FolderHandler,
-            # dc: DcHandler,
-            # ) -> VmHandler:
+        self,
+        deploy_app: BaseProxmoxDeployApp,
+        vm_name: str,
+        vm_storage
     ) -> int:
-        """Create VM on the vCenter."""
-        with self._cancellation_manager:
-            vm_template = self._get_vm_template(deploy_app)
+        """"""
+        pass
 
-        with self._cancellation_manager:
-            snapshot = self._get_vm_snapshot(deploy_app, vm_template)
-
-        # config_spec = ConfigSpecHandler.from_deploy_add(deploy_app)
-        # if deploy_app.copy_source_uuid:
-        #     config_spec.bios_uuid = vm_template.bios_uuid
-
-        return CloneVMCommand(
-            api=self.proxmox_api,
-            rollback_manager=self._rollback_manager,
-            cancellation_manager=self._cancellation_manager,
-            vm_template=vm_template,
-            vm_name=vm_name,
-            vm_storage=vm_storage,
-            vm_snapshot=snapshot,
-        ).execute()
-
+    @abstractmethod
     def _apply_cloud_init(
-            self,
-            deploy_app: BaseProxmoxDeployApp,
-            deployed_vm_id: int
+        self,
+        deploy_app: BaseProxmoxDeployApp,
+        deployed_vm_id: int
     ) -> None:
-        with self._cancellation_manager:
-            # we create customization spec here and will set it on PowerOn command
-            self.proxmox_api.set_user_data(
-                vm_id=deployed_vm_id,
-                username=deploy_app.user,
-                password=deploy_app.password
-            )
+        """"""
+        pass
 
     def _deploy(self, request_actions: DeployVMRequestActions) -> DeployAppResult:
-        """Deploy VCenter VM."""
+        """Deploy Proxmox Instance."""
         conf = self._resource_config
         # noinspection PyTypeChecker
         deploy_app: BaseProxmoxDeployApp = request_actions.deploy_app

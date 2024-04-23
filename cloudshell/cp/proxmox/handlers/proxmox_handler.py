@@ -82,30 +82,31 @@ class ProxmoxHandler:
 
         raise VmDoesNotExistException(f"There is no VM with vmid {instance_id}")
 
-    def start_vm(self, instance_id: int, node: str = None) -> None:
+    def start_instance(self, instance_id: int, node: str = None) -> None:
         """Turn ON Virtual Machine by instance_id"""
         if not node:
             node = self.get_node_by_vmid(instance_id)
-        self._obj.start_vm(node=node, instance_id=instance_id)
+        self._obj.start_instance(node=node, instance_id=instance_id)
 
-    def stop_vm(self, instance_id: int, soft: bool, node: str = None) -> None:
+    def stop_instance(self, instance_id: int, soft: bool, node: str = None) -> None:
         """Turn ON Virtual Machine by instance_id"""
         if not node:
             node = self.get_node_by_vmid(instance_id)
         if soft:
-            self._obj.shutdown_vm(node=node, instance_id=instance_id)
+            self._obj.shutdown_instance(node=node, instance_id=instance_id)
         else:
-            self._obj.stop_vm(node=node, instance_id=instance_id)
+            self._obj.stop_instance(node=node, instance_id=instance_id)
 
-    def delete_vm(self, instance_id: int) -> None:
+    def delete_instance(self, instance_id: int) -> None:
         """Stop Virtual machine and delete it."""
         try:
             node = self.get_node_by_vmid(instance_id)
-            self.stop_vm(instance_id=instance_id, soft=False, node=node)
-            self._obj.delete_vm(node=node, instance_id=instance_id)
+            self.stop_instance(instance_id=instance_id, soft=False, node=node)
+            self._obj.delete_instance(node=node, instance_id=instance_id)
         except VmDoesNotExistException:
             logger.info(
-                f"Virtual machine with instance_id {instance_id} doesn't exist. Skip deleting."
+                f"Virtual machine with instance_id {instance_id} doesn't exist. "
+                f"Skip deleting."
             )
 
     def get_instance_status(self, instance_id: int) -> str:
@@ -290,7 +291,7 @@ class ProxmoxHandler:
             msg=f"Failed to restore from snapshot {name} during {{attempt*timeout}} sec"
         )
 
-    def clone_vm(
+    def clone_instance(
             self,
             instance_id: int,
             vm_name: str,
@@ -299,7 +300,7 @@ class ProxmoxHandler:
             user_data: dict | None = None,
     ) -> str:
         """Clone Virtual Machine."""
-        new_instance_id = self._obj.clone_vm(
+        new_instance_id = self._obj.clone_instance(
             node=node,
             instance_id=instance_id,
             name=vm_name,

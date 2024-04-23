@@ -26,10 +26,13 @@ class ProxmoxPowerFlow:
     def power_on(self):
         """Power ON Virtual Machine."""
         logger.info(f"Powering On the {self._deployed_app.vmdetails.uid}")
-        self._si.start_vm(vm_id=int(self._deployed_app.vmdetails.uid))
+        self._si.start_instance(instance_id=int(self._deployed_app.vmdetails.uid))
 
     def power_off(self):
         """Power OFF Virtual Machine."""
         logger.info(f"Powering Off {self._deployed_app.vmdetails.uid}")
         soft = self._resource_config.shutdown_method is ShutdownMethod.SOFT
-        self._si.stop_vm(vm_id=int(self._deployed_app.vmdetails.uid), soft=soft)
+        self._si.stop_instance(
+            instance_id=int(self._deployed_app.vmdetails.uid),
+            soft=soft
+        )

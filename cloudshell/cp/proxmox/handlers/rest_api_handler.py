@@ -392,7 +392,7 @@ class ProxmoxAutomationAPI(BaseAPIClient):
             cookies={COOKIES: self.ticket}
         )
 
-    def start_vm(self, node: str, instance_id: int) -> None:
+    def start_instance(self, node: str, instance_id: int) -> None:
         """Start Virtual Machine."""
         error_map = {
             400: ParamsException,
@@ -404,7 +404,7 @@ class ProxmoxAutomationAPI(BaseAPIClient):
             cookies={COOKIES: self.ticket}
         )
 
-    def stop_vm(self, node: str, instance_id: int) -> None:
+    def stop_instance(self, node: str, instance_id: int) -> None:
         """Stop virtual machine.
 
         The qemu process will exit immediately.
@@ -421,7 +421,7 @@ class ProxmoxAutomationAPI(BaseAPIClient):
             cookies={COOKIES: self.ticket}
         )
 
-    def shutdown_vm(self, node: str, instance_id: int) -> None:
+    def shutdown_instance(self, node: str, instance_id: int) -> None:
         """Shutdown virtual machine.
 
         This is similar to pressing the power button on a physical machine.
@@ -439,7 +439,7 @@ class ProxmoxAutomationAPI(BaseAPIClient):
         )
 
     # @Decorators.is_success
-    def clone_vm(
+    def clone_instance(
             self,
             node: str,
             instance_id: int,
@@ -484,7 +484,7 @@ class ProxmoxAutomationAPI(BaseAPIClient):
         return new_instance_id
 
     # @Decorators.is_success
-    def delete_vm(
+    def delete_instance(
             self,
             node: str,
             instance_id: int,
@@ -622,7 +622,7 @@ class ProxmoxAutomationAPI(BaseAPIClient):
         return self._do_post(
             path=f"nodes/{node}/termproxy",
             json={
-                "node": "proxmox1",
+                "node": node,
                 # "websocket": True
             },
             http_error_map=error_map,
