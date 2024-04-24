@@ -30,17 +30,17 @@ class CloneVMCommand(RollbackCommand):
         self._vm_storage = vm_storage
         self._vm_snapshot = vm_snapshot
         self._user_data = user_data
-        self._cloned_vm: str | None = None
+        self._cloned_vm: int | None = None
 
-    def _execute(self) -> str:
-        try:
-            vm_id = int(self._vm_template)
-        except ValueError:
-            vm_id = self._api.get_vm_id(self._vm_template)
+    def _execute(self) -> int:
+        # try:
+        instance_id = int(self._vm_template)
+        # except ValueError:
+        #     instance_id = self._api.get_instance_id(self._vm_template)
 
         try:
-            vm = self._api.clone_vm(
-                vm_id=vm_id,
+            self._cloned_vm = self._api.clone_instance(
+                instance_id=instance_id,
                 vm_name=self._vm_name,
                 node=self._vm_storage,
                 snapshot=self._vm_snapshot,
@@ -49,12 +49,12 @@ class CloneVMCommand(RollbackCommand):
             # with suppress(FolderIsNotEmpty):
             #     self._vm_folder.destroy()
             raise
-        else:
-            self._cloned_vm = vm
-            return vm
+        # else:
+        #     self._cloned_vm = vm
+        return self._cloned_vm
 
     def rollback(self):
         if self._cloned_vm:
-            self._cloned_vm.delete()
+            self._api.delete_instance(self._cloned_vm)
         # with suppress(FolderIsNotEmpty):
         #     self._vm_folder.destroy()

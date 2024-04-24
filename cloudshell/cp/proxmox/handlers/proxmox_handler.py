@@ -313,13 +313,14 @@ class ProxmoxHandler:
             name=vm_name,
             snapshot=snapshot,
         )
+
         self._task_waiter(
             node=node,
             upid=str(new_instance_id),
             msg=f"Failed to clone VM {vm_name} during {{attempt*timeout}} sec"
         )
 
-        return new_instance_id
+        return int(new_instance_id)
 
     def delete_snapshot(self, instance_id: int, name: str):
         """Delete Virtual Machine snapshot."""
