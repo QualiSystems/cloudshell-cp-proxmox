@@ -7,6 +7,7 @@ from attrs import define
 
 class ProxmoxDeploymentAppAttributeNames:
     target_node = "Target Node"
+    target_storage = "Target Storage"
     behavior_during_save = "Behavior during save"
     auto_power_on = "Auto Power On"
     auto_power_off = "Auto Power Off"
@@ -48,7 +49,7 @@ class ProxmoxInstanceFromTemplateDeploymentAppAttributeNames(
     ProxmoxDeploymentAppAttributeNames
 ):
     template_id = "Template ID"
-    disk_mode = "Disk Mode"
+    clone_mode = "Clone Mode"
 
 
 @define

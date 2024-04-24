@@ -23,6 +23,7 @@ class BaseProxmoxDeployedApp(DeployedApp):
     ATTR_NAMES = ProxmoxDeploymentAppAttributeNames
 
     target_node = ResourceAttrRODeploymentPath(ATTR_NAMES.target_node)
+    target_storage = ResourceAttrRODeploymentPath(ATTR_NAMES.target_storage)
     behavior_during_save = ResourceAttrRODeploymentPath(ATTR_NAMES.behavior_during_save)
     auto_power_on = ResourceBoolAttrRODeploymentPath(ATTR_NAMES.auto_power_on)
     auto_power_off = ResourceBoolAttrRODeploymentPath(ATTR_NAMES.auto_power_off)
@@ -47,7 +48,7 @@ class InstanceFromTemplateDeployedApp(BaseProxmoxDeployedApp):
 
     DEPLOYMENT_PATH = constants.VM_FROM_TEMPLATE_DEPLOYMENT_PATH
     template_id = ResourceAttrRODeploymentPath(ATTR_NAMES.template_id)
-    disk_mode = ResourceAttrRODeploymentPath(ATTR_NAMES.disk_mode)
+    disk_mode = ResourceAttrRODeploymentPath(ATTR_NAMES.clone_mode)
 
 
 class InstanceFromContainerDeployedApp(BaseProxmoxDeployedApp):
