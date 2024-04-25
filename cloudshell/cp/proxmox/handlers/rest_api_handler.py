@@ -446,8 +446,8 @@ class ProxmoxAutomationAPI(BaseAPIClient):
             name: str = None,
             snapshot: str = None,
             full: bool = None,
-            storage: str = None,
-            target: str = None,
+            target_storage: str = None,
+            target_node: str = None,
     ) -> int:
         """Create VM."""
         error_map = {
@@ -475,12 +475,12 @@ class ProxmoxAutomationAPI(BaseAPIClient):
             data["full"] = True
 
             # Target storage for full clone.
-            if storage:
-                data["storage"] = storage
+            if target_storage:
+                data["storage"] = target_storage
 
         # Target node. Only allowed if the original VM is on shared storage.
-        if target:
-            data["target"] = target
+        if target_node:
+            data["target"] = target_node
 
         self._do_post(
             path=f"nodes/{node}/{self.instance_type.value}/{instance_id}/clone",

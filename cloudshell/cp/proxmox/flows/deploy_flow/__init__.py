@@ -1,33 +1,34 @@
 from __future__ import annotations
 
-from .base_flow import AbstractProxmoxDeployVMFlow
+from .base_flow import AbstractProxmoxDeployFlow
 from .from_qemu import ProxmoxDeployVMFromQEMUImageFlow
 from .from_container_image import ProxmoxDeployContainerFromImageFlow
-from .from_template import ProxmoxDeployVMFromTemplateFlow
-from .from_vm import ProxmoxDeployVMFromVMFlow
+from .from_template import ProxmoxDeployInstanceFromTemplateFlow
+from .from_vm import ProxmoxDeployInstanceFromVMFlow
 
 from cloudshell.cp.proxmox.models import deploy_app
+from cloudshell.cp.proxmox.utils.instance_type import InstanceType
 
-DEPLOY_APP_TO_FLOW = (
-    (deploy_app.VMFromVMDeployApp, ProxmoxDeployVMFromVMFlow),
-    (deploy_app.VMFromTemplateDeployApp, ProxmoxDeployVMFromTemplateFlow),
-    (deploy_app.ContainerFromImageDeployApp, ProxmoxDeployContainerFromImageFlow),
-    (deploy_app.VMFromQEMUImageDeployApp, ProxmoxDeployVMFromQEMUImageFlow),
+DEPLOY_APP_TO_FLOW_PARAMS = (
+    (deploy_app.InstanceFromVMDeployApp, (ProxmoxDeployInstanceFromVMFlow, InstanceType.VM)),
+    (deploy_app.InstanceFromTemplateDeployApp, (ProxmoxDeployInstanceFromTemplateFlow, InstanceType.VM)),
+    (deploy_app.ContainerFromImageDeployApp, (ProxmoxDeployContainerFromImageFlow, InstanceType.CONTAINER)),
+    (deploy_app.InstanceFromQEMUImageDeployApp, (ProxmoxDeployVMFromQEMUImageFlow, InstanceType.CONTAINER)),
 )
 
 
-def get_deploy_flow(request_action) -> type[AbstractProxmoxDeployVMFlow]:
+def get_deploy_params(request_action) -> type[AbstractProxmoxDeployFlow]:
     da = request_action.deploy_app
-    for deploy_class, deploy_flow in DEPLOY_APP_TO_FLOW:
+    for deploy_class, deploy_params in DEPLOY_APP_TO_FLOW_PARAMS:
         if isinstance(da, deploy_class):
-            return deploy_flow
+            return deploy_params
     raise NotImplementedError(f"Not supported deployment type {type(da)}")
 
 
 __all__ = (
-    ProxmoxDeployVMFromVMFlow,
-    ProxmoxDeployVMFromTemplateFlow,
+    ProxmoxDeployInstanceFromVMFlow,
+    ProxmoxDeployInstanceFromTemplateFlow,
     ProxmoxDeployContainerFromImageFlow,
     ProxmoxDeployVMFromQEMUImageFlow,
-    get_deploy_flow,
+    get_deploy_params,
 )

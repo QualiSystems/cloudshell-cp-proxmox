@@ -287,8 +287,11 @@ class ProxmoxHandler:
         """Restore Virtual Machine from state from snapshot."""
         node = self.get_node_by_vmid(instance_id)
 
-        upid = self._obj.restore_from_snapshot(node=node, instance_id=instance_id,
-                                               name=name)
+        upid = self._obj.restore_from_snapshot(
+            node=node,
+            instance_id=instance_id,
+            name=name
+        )
 
         self._task_waiter(
             node=node,
@@ -299,25 +302,30 @@ class ProxmoxHandler:
     def clone_instance(
             self,
             instance_id: int,
-            vm_name: str,
-            node: str,
+            instance_name: str,
             snapshot: str = None,
             full: bool = None,
-            storage: str = None,
-            target: str = None,
+            target_storage: str = None,
+            target_node: str = None,
     ) -> int:
         """Clone Virtual Machine."""
+        node = self.get_node_by_vmid(instance_id)
+
         new_instance_id = self._obj.clone_instance(
             node=node,
             instance_id=instance_id,
-            name=vm_name,
+            name=instance_name,
             snapshot=snapshot,
+            full=full,
+            target_storage=target_storage,
+            target_node=target_node,
         )
 
         self._task_waiter(
             node=node,
             upid=str(new_instance_id),
-            msg=f"Failed to clone VM {vm_name} during {{attempt*timeout}} sec"
+            msg=f"Failed to clone Instance {instance_name} "
+                f"during {{attempt*timeout}} seconds."
         )
 
         return int(new_instance_id)

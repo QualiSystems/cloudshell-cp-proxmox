@@ -1,8 +1,5 @@
 from __future__ import annotations
 
-from contextlib import suppress
-from typing import Dict
-
 from cloudshell.cp.core.cancellation_manager import CancellationContextManager
 from cloudshell.cp.core.rollback import RollbackCommand, RollbackCommandsManager
 
@@ -13,48 +10,42 @@ class CloneVMCommand(RollbackCommand):
     def __init__(
         self,
         api: ProxmoxHandler,
-        vm_template: str,
+        instance_id: int,
         rollback_manager: RollbackCommandsManager,
         cancellation_manager: CancellationContextManager,
-        vm_name: str,
-        vm_storage: str,
-        vm_snapshot: str | None = None,
-        user_data: dict | None = None,
+        full: bool,
+        instance_name: str,
+        target_storage: str,
+        target_node: str,
+        instance_snapshot: str | None = None,
     ):
         super().__init__(
             rollback_manager=rollback_manager, cancellation_manager=cancellation_manager
         )
         self._api = api
-        self._vm_template = vm_template
-        self._vm_name = vm_name
-        self._vm_storage = vm_storage
-        self._vm_snapshot = vm_snapshot
-        self._user_data = user_data
-        self._cloned_vm: int | None = None
+        self._src_instance_id = instance_id
+        self._instance_name = instance_name
+        self._full = full
+        self._target_storage = target_storage
+        self._target_node = target_node
+        self._vm_snapshot = instance_snapshot
+        self._cloned_vm_id: int | None = None
 
     def _execute(self) -> int:
-        # try:
-        instance_id = int(self._vm_template)
-        # except ValueError:
-        #     instance_id = self._api.get_instance_id(self._vm_template)
-
         try:
             self._cloned_vm = self._api.clone_instance(
-                instance_id=instance_id,
-                vm_name=self._vm_name,
-                node=self._vm_storage,
+                instance_id=self._src_instance_id,
+                instance_name=self._instance_name,
                 snapshot=self._vm_snapshot,
+                full=self._full,
+                target_storage=self._target_storage,
+                target_node=self._target_node,
             )
         except Exception:
-            # with suppress(FolderIsNotEmpty):
-            #     self._vm_folder.destroy()
             raise
-        # else:
-        #     self._cloned_vm = vm
-        return self._cloned_vm
+
+        return self._cloned_vm_id
 
     def rollback(self):
-        if self._cloned_vm:
-            self._api.delete_instance(self._cloned_vm)
-        # with suppress(FolderIsNotEmpty):
-        #     self._vm_folder.destroy()
+        if self._cloned_vm_id:
+            self._api.delete_instance(self._cloned_vm_id)
