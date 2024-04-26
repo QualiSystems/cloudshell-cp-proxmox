@@ -1,5 +1,6 @@
 from cloudshell.cp.core.request_actions.models import VmDetailsData
 
+from cloudshell.cp.proxmox.actions.vm_details import VMDetailsActions
 from cloudshell.cp.proxmox.flows.deploy_flow import AbstractProxmoxDeployFlow
 from cloudshell.cp.proxmox.models.deploy_app import InstanceFromVMDeployApp
 
@@ -11,8 +12,8 @@ class ProxmoxDeployInstanceFromVMFlow(AbstractProxmoxDeployFlow):
 
     def _apply_cloud_init(
         self,
-        deploy_app: InstanceFromVMDeployApp,
-        deployed_vm_id: int
+        deployed_vm_id: int,
+        deploy_app: InstanceFromVMDeployApp
     ) -> None:
         """"""
         pass
@@ -27,7 +28,14 @@ class ProxmoxDeployInstanceFromVMFlow(AbstractProxmoxDeployFlow):
 
     def _prepare_vm_details_data(
         self,
-        deployed_vm: object,
+        deployed_vm_id: int,
         deploy_app: InstanceFromVMDeployApp
     ) -> VmDetailsData:
-        pass
+        """Prepare CloudShell VM Details model."""
+        vm_details_actions = VMDetailsActions(
+            self.proxmox_api,
+            self._resource_config,
+            self._cancellation_manager,
+        )
+        return vm_details_actions.create(deployed_vm_id, deploy_app)
+

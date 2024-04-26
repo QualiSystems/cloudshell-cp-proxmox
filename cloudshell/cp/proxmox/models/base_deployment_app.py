@@ -83,6 +83,11 @@ class ResourceBoolAttrRODeploymentPath(ResourceAttrRODeploymentPath):
         raise ValueError(f"{self.name} is boolean attr, but value is {val}")
 
 
+class ProxmoxCloneModeAttrRO(ResourceBoolAttrRODeploymentPath):
+    TRUE_VALUES = {"Full", }
+    FALSE_VALUES = {"Linked", }
+
+
 class ResourceListAttrRODeploymentPath(ResourceAttrRODeploymentPath):
     def __init__(self, name, sep=";", default=None):
         if default is None:

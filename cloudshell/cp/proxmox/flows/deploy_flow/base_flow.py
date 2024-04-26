@@ -43,8 +43,8 @@ class AbstractProxmoxDeployFlow(AbstractDeployFlow):
     @abstractmethod
     def _apply_cloud_init(
         self,
-        deploy_app: BaseProxmoxDeployApp,
-        deployed_vm_id: int
+        deployed_vm_id: int,
+        deploy_app: BaseProxmoxDeployApp
     ) -> None:
         """"""
         pass

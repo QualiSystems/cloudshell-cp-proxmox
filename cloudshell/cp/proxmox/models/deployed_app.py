@@ -12,6 +12,7 @@ from cloudshell.cp.proxmox.models.base_deployment_app import (
     ResourceBoolAttrRODeploymentPath,
     ResourceIntAttrRODeploymentPath,
     ProxmoxDeploymentAppAttributeNames,
+    ProxmoxCloneModeAttrRO,
     ProxmoxInstanceFromVMDeploymentAppAttributeNames,
     ProxmoxInstanceFromTemplateDeploymentAppAttributeNames,
     ProxmoxInstanceFromContainerDeploymentAppAttributeNames,
@@ -48,7 +49,7 @@ class InstanceFromTemplateDeployedApp(BaseProxmoxDeployedApp):
 
     DEPLOYMENT_PATH = constants.VM_FROM_TEMPLATE_DEPLOYMENT_PATH
     template_id = ResourceAttrRODeploymentPath(ATTR_NAMES.template_id)
-    disk_mode = ResourceAttrRODeploymentPath(ATTR_NAMES.clone_mode)
+    clone_mode = ProxmoxCloneModeAttrRO(ATTR_NAMES.clone_mode)
 
 
 class InstanceFromContainerDeployedApp(BaseProxmoxDeployedApp):

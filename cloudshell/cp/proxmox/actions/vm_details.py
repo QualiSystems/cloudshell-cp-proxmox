@@ -41,9 +41,12 @@ class VMDetailsActions:
         self._resource_conf = resource_conf
         self._cancellation_manager = cancellation_manager
 
-    def _prepare_common_vm_instance_data(self, vm_id: int) -> list[VmDetailsProperty]:
+    def _prepare_common_vm_instance_data(
+        self,
+        instance_id: int
+    ) -> list[VmDetailsProperty]:
 
-        vm_info = self._si.get_vm_info(vm_id=vm_id)
+        vm_info = self._si.get_instance_info(instance_id=instance_id)
         data = [
             VmDetailsProperty(key="CPU", value=f"{vm_info['CPU']} vCPU"),
             VmDetailsProperty(key="Memory", value=format_bytes(vm_info["Memory"])),
@@ -55,14 +58,14 @@ class VMDetailsActions:
 
     def _prepare_vm_network_data(
             self,
-            vm_id: int,
+            instance_id: int,
     ) -> list[VmDetailsNetworkInterface]:
         """Prepare VM Network data."""
-        logger.info(f"Preparing VM Details network data for the {vm_id}")
+        logger.info(f"Preparing VM Details network data for the {instance_id}")
 
         network_interfaces = []
 
-        for iface in self._si.get_vm_ifaces_info(vm_id=vm_id):
+        for iface in self._si.get_instance_ifaces_info(instance_id=instance_id):
             network_data = [
                 VmDetailsProperty(key="IP", value=iface["ipv4"]),
                 VmDetailsProperty(key="MAC Address", value=iface["mac"]),
@@ -80,6 +83,7 @@ class VMDetailsActions:
 
     def create(
         self,
+        instance_id: int,
         app_model: APP_MODEL_TYPES,
     ) -> VmDetailsData:
         try:
@@ -88,9 +92,9 @@ class VMDetailsActions:
             app_name = app_model.name  # DeployedApp
 
         try:
-            vm_id = int(app_model.vmdetails.uid)
-            instance_details = self._prepare_common_vm_instance_data(vm_id=vm_id)
-            network_details = self._prepare_vm_network_data(vm_id=vm_id)
+            # instance_id = int(app_model.vmdetails.uid)
+            instance_details = self._prepare_common_vm_instance_data(instance_id=instance_id)  # noqa: E501
+            network_details = self._prepare_vm_network_data(instance_id=instance_id)
         except Exception as e:
             logger.exception("Failed to created VM Details:")
             details = VmDetailsData(appName=app_name, errorMessage=str(e))

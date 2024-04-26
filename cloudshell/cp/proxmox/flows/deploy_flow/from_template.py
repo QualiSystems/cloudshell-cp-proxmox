@@ -1,5 +1,6 @@
 from cloudshell.cp.core.request_actions.models import VmDetailsData
 
+from cloudshell.cp.proxmox.actions.vm_details import VMDetailsActions
 from cloudshell.cp.proxmox.flows.deploy_flow import AbstractProxmoxDeployFlow
 from cloudshell.cp.proxmox.models.deploy_app import InstanceFromTemplateDeployApp
 
@@ -12,8 +13,8 @@ class ProxmoxDeployInstanceFromTemplateFlow(AbstractProxmoxDeployFlow):
 
     def _apply_cloud_init(
         self,
-        deploy_app: InstanceFromTemplateDeployApp,
-        deployed_vm_id: int
+        deployed_vm_id: int,
+        deploy_app: InstanceFromTemplateDeployApp
     ) -> None:
         """"""
         pass
@@ -24,11 +25,18 @@ class ProxmoxDeployInstanceFromTemplateFlow(AbstractProxmoxDeployFlow):
 
     def _is_full_disk_clone(self, deploy_app: InstanceFromTemplateDeployApp) -> bool:
         """Determine is disk cloning full or not."""
-        return False  # TODO
+        return deploy_app.clone_mode or False
 
     def _prepare_vm_details_data(
         self,
-        deployed_vm: object,
+        deployed_vm_id: int,
         deploy_app: InstanceFromTemplateDeployApp
     ) -> VmDetailsData:
-        pass
+        """Prepare CloudShell VM Details model."""
+        vm_details_actions = VMDetailsActions(
+            self.proxmox_api,
+            self._resource_config,
+            self._cancellation_manager,
+        )
+        return vm_details_actions.create(deployed_vm_id, deploy_app)
+
