@@ -324,9 +324,9 @@ class ProxmoxAutomationAPI(BaseAPIClient):
             self,
             node: str,
             network_bridge: str,
-            interface_id: str,
+            interface_id: int,
             instance_id: int,
-            vlan_tag: str,
+            vlan_tag: int,
             interface_type: str = "virtio",
             mac_address: str = "",
             enable_firewall: bool = True,
@@ -688,8 +688,8 @@ if __name__ == "__main__":
         # instance_type=InstanceType.VM
     )
     api.connect()
-    res = api.attach_interface(node="proxmox1", instance_id=101, network_bridge="vmbr1",
-                               interface_id="3", vlan_tag="65")
+    res = api.attach_interface(node="proxmox1", instance_id=101,
+                               network_bridge="vmbr1", interface_id=3, vlan_tag=65)
     res1 = api.get_instance_ifaces(node="proxmox1", instance_id=101)
     res = api.get_task_status(node="proxmox1", upid="UPID:proxmox1:0034308A:11F8AFA1:660C23DC:qmsnapshot:100:root@pam:")
 

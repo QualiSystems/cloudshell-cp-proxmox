@@ -23,6 +23,7 @@ from cloudshell.cp.proxmox.handlers.proxmox_handler import ProxmoxHandler
 from cloudshell.cp.proxmox.models.connectivity_action_model import \
     ProxmoxConnectivityActionModel
 from cloudshell.cp.proxmox.resource_config import ProxmoxResourceConfig
+from cloudshell.cp.proxmox.utils.connectivity_helpers import NetworkSettings
 from cloudshell.cp.proxmox.utils.threading import LockHandler
 
 if TYPE_CHECKING:
@@ -105,7 +106,7 @@ class ProxmoxConnectivityFlow(AbcCloudProviderConnectivityFlow):
                 True,
             )
 
-        return tuple(map(get_vnic_info, self._api.get_vm_ifaces_info(vm_id)))
+        return tuple(map(get_vnic_info, self._api.get_instance_ifaces_info(vm_id)))
 
     def set_vlan(
         self, action: ProxmoxConnectivityActionModel, target: str = None
@@ -123,7 +124,16 @@ class ProxmoxConnectivityFlow(AbcCloudProviderConnectivityFlow):
         #     vnic = create_new_vnic(target, network, vnic_name)
         # else:
         #     vnic.connect(network)
-        mac = ""
+        # mac = ""
+
+        mac = self._api.attach_interface(
+            network_bridge=network_bridge,
+            instance_id=instance_id,
+            vlan_tag=vlan_tag,
+            vnic_id=vnic_id,
+            interface_type=interface_type,
+            enable_firewall=enable_firewall,
+        ).get("mac")
 
         return vnic.mac_address
 
@@ -288,54 +298,6 @@ class ProxmoxConnectivityFlow(AbcCloudProviderConnectivityFlow):
 
         return tags
 
-    def _remove_pg(self, pg_name: str, existed: bool, vm_uuid: str) -> set[str]:
-        check_pg_can_be_removed(pg_name, existed)
-        network = self._networks_watcher.get_network(pg_name)
-        network.wait_network_become_free(raise_=True)
-
-        try:
-            tags = self._get_network_tags(network)
-        finally:
-            vm = self.get_target(vm_uuid)
-            # remove from the host where the VM is located
-            if vm:
-                vm.host.remove_port_group(network.name)
-            else:
-                self._delete_pg_from_every_host(network)
-            del network
-        logger.info(f"Network {pg_name} was removed")
-        return tags
-
-    def _delete_pg_from_every_host(self, network: NetworkHandler) -> None:
-        """Delete Virtual Port Group from every host in the cluster."""
-        cluster = self._dc.get_cluster(self._resource_conf.vm_cluster)
-        logger.info(f"Removing {network} from every host in the {cluster}")
-        net_name = network.name
-        for host in cluster.hosts:
-            try:
-                host.remove_port_group(net_name)
-            except ResourceInUse:
-                logger.info(f"Network '{net_name}' is still in use on the {host}")
-
-    def _get_network_tags(
-        self, network: NetworkHandler
-    ) -> set[str]:
-        """Get network's tag IDs."""
-        tags = set()
-        if self._vsphere_client and self._resource_conf.is_static:
-            tags |= self._vsphere_client.get_attached_tags(network)
-        return tags
-
-    def _remove_tags(self, tags: set[str]) -> None:
-        # In case of static resource we need to remove unused tags
-        # in other cases tags would be removed in Delete Instance command
-        if self._vsphere_client and self._resource_conf.is_static:
-            self._vsphere_client.delete_unused_tags(tags)
-
-    def _add_tags(self, network: NetworkHandler) -> None:
-        if self._vsphere_client:
-            self._vsphere_client.assign_tags(network)
-
     def _network_can_be_replaced(self, net: AbstractNetwork) -> bool:
         reserved_networks = self._resource_conf.reserved_networks
         not_quali_name = not is_network_generated_name(net.name)
@@ -352,7 +314,7 @@ class ProxmoxConnectivityFlow(AbcCloudProviderConnectivityFlow):
     def _get_network_settings(
         self, action: ProxmoxConnectivityActionModel
     ) -> NetworkSettings:
-        return NetworkSettings.convert(action, self._resource_conf)
+        return NetworkSettings.convert(action)
 
     def _is_remove_vlan_or_failed(self, action: ProxmoxConnectivityActionModel) -> bool:
         if is_remove_action(action):
