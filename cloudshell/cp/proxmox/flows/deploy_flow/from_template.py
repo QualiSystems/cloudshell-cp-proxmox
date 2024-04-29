@@ -16,8 +16,16 @@ class ProxmoxDeployInstanceFromTemplateFlow(AbstractProxmoxDeployFlow):
         deployed_vm_id: int,
         deploy_app: InstanceFromTemplateDeployApp
     ) -> None:
-        """"""
-        pass
+        """Apply Cloud Init."""
+        username = deploy_app.user
+        password = deploy_app.password
+
+        if username and password:
+            self.proxmox_api.set_user_data(
+                instance_id=deployed_vm_id,
+                username=username,
+                password=password
+            )
 
     def _get_source_instance(self, deploy_app: InstanceFromTemplateDeployApp) -> int:
         """Get Source VM ID."""

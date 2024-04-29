@@ -176,7 +176,7 @@ class AbstractProxmoxDeployFlow(AbstractDeployFlow):
                 instance_name=instance_name,
             )
             # self._add_tags(deployed_vm)
-            self._apply_cloud_init(deploy_app, deployed_vm_id)
+            self._apply_cloud_init(deployed_vm_id, deploy_app)
 
         logger.info(f"Preparing Deploy App result for the {deployed_vm_id}")
         return self._prepare_deploy_app_result(
