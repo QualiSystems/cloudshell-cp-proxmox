@@ -30,6 +30,7 @@ class ProxmoxAttributeNames:
     shared_storage = "Shared Storage"
     behavior_during_save = "Behavior During Save"
     shutdown_method = "Shutdown Method"
+    default_bridge = "Default Bridge"
     # enable_tags = "Enable Tags"
 
 
@@ -40,6 +41,7 @@ class ProxmoxResourceConfig(BaseConfig):
     user: str = attr(ATTR_NAMES.user)
     password: str = attr(ATTR_NAMES.password, is_password=True)
     shared_storage: str = attr(ATTR_NAMES.shared_storage)
+    default_bridge: str = attr(ATTR_NAMES.default_bridge)
     behavior_during_save: str = attr(ATTR_NAMES.behavior_during_save)
     shutdown_method: ShutdownMethod = attr(ATTR_NAMES.shutdown_method)
     # enable_tags: bool = attr(ATTR_NAMES.enable_tags)

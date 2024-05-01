@@ -152,21 +152,24 @@ class NetworkSettings:
     old_name: str
     existed: bool
     switch_name: str
-    vlan_id: str
+    vlan_id: int
     port_mode: ConnectionModeEnum
+    enable_firewall: bool
     vm_uuid: str
 
     @classmethod
     def convert(
         cls,
         action: ProxmoxConnectivityActionModel,
+        resource_config: ProxmoxResourceConfig,
     ) -> Self:
         con_params = action.connection_params
         vlan_service = con_params.vlan_service_attrs
 
-        vlan_id = con_params.vlan_id
+        vlan_id = int(con_params.vlan_id)
         port_mode = con_params.mode
-        switch = vlan_service.switch_name
+        enable_firewall = vlan_service.enable_firewall
+        switch = vlan_service.switch_name or resource_config.default_bridge
 
         if name := (old_name := get_existed_port_group_name(action)):
             existed = True
@@ -186,4 +189,5 @@ class NetworkSettings:
             vlan_id=vlan_id,
             port_mode=port_mode,
             vm_uuid=action.custom_action_attrs.vm_uuid,
+            enable_firewall=enable_firewall,
         )

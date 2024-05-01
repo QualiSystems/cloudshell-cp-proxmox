@@ -177,6 +177,21 @@ class ProxmoxHandler:
             )
             raise e
 
+    def get_instance_interface_type(self, instance_id: int) -> str:
+        """Get MAC address of Virtual Machine interface."""
+        try:
+            node = self.get_node_by_vmid(instance_id)
+            data = self._obj.get_instance_config(node=node, instance_id=instance_id)
+            for k, v in data.items():
+                if k.startswith(f"net"):
+                    response = self.VM_REGEXP.search(v).groupdict().get("type")
+                    return response
+        except VmDoesNotExistException as e:
+            logger.error(
+                f"Virtual machine with instance_id {instance_id} doesn't exist."
+            )
+            raise e
+
     def get_instance_ifaces_info(self, instance_id):
         result = {}
         try:
@@ -253,12 +268,12 @@ class ProxmoxHandler:
 
     def attach_interface(self,
                          network_bridge: str,
-                         instance_id: int,
+                         instance_id: str,
                          vlan_tag: int,
                          vnic_id: int,
                          interface_type: str = "virtio",
                          enable_firewall: bool = False
-                         ) -> None:
+                         ) -> str:
         """Attach interface to Virtual Machine."""
         node = self.get_node_by_vmid(instance_id)
         upid = self._obj.attach_interface(
@@ -276,9 +291,7 @@ class ProxmoxHandler:
             upid=upid,
             msg=f"Failed to attach interface {vnic_id} during {{attempt*timeout}} sec"
         )
-        mac = self.obj.get_mac_address_by_interface_id(interface_id=
-                                                        vnic_id)
-        return self.get_instance_ifaces_info(instance_id).get()
+        return self.obj.get_mac_address_by_interface_id(interface_id=vnic_id)
 
     def get_snapshots_list(self, instance_id: int) -> list[int | bytes]:
         """Get list of existing snapshots."""
