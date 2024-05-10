@@ -39,11 +39,12 @@ TIMEOUT = 5
 
 @define
 class ProxmoxHandler:
-    VM_REGEXP = re.compile(
-        r"^(?P<type>\w+)=(?P<mac>([0-9A-Fa-f]{2}[:-]){5}([0-9A-Fa-f]{2})+),"
-        r".*bridge=(?P<bridge>\w+),"
-        r".*tag=(?P<vlan>\d+)(,.*)?$"
-    )
+    # VM_REGEXP = re.compile(
+    #     r"^(?P<type>\w+)=(?P<mac>([0-9A-Fa-f]{2}[:-]){5}([0-9A-Fa-f]{2})+),"
+    #     r".*bridge=(?P<bridge>\w+),"
+    #     r".*tag=(?P<vlan>\d+)(,.*)?$"
+    # )
+
     #  net0: virtio=02:00:00:00:00:01,bridge=vmbr0,tag=10
     #  [model=](e1000 | e1000-82540em | e1000-82544gc | e1000-82545em | e1000e
     #  | i82551 | i82557b | i82559er | ne2k_isa | ne2k_pci | pcnet | rtl8139
@@ -167,10 +168,7 @@ class ProxmoxHandler:
         try:
             node = self.get_node_by_vmid(instance_id)
             data = self._obj.get_instance_config(node=node, instance_id=instance_id)
-            for k, v in data.items():
-                if k.startswith(f"net{interface_id}"):
-                    response = self.VM_REGEXP.search(v).groupdict().get("mac")
-                    return response
+            return data.get(f"net{interface_id}", {}).get(MAC)
         except VmDoesNotExistException as e:
             logger.error(
                 f"Virtual machine with instance_id {instance_id} doesn't exist."
@@ -184,8 +182,7 @@ class ProxmoxHandler:
             data = self._obj.get_instance_config(node=node, instance_id=instance_id)
             for k, v in data.items():
                 if k.startswith(f"net"):
-                    response = self.VM_REGEXP.search(v).groupdict().get("type")
-                    return response
+                    return v.get("type")
         except VmDoesNotExistException as e:
             logger.error(
                 f"Virtual machine with instance_id {instance_id} doesn't exist."
@@ -201,22 +198,22 @@ class ProxmoxHandler:
             guest_ifaces = {x.get(MAC): x for x in guest_data.get("result", [])}
             for k, v in config.items():
                 if k.startswith("net"):
-                    vnic_data = self.VM_REGEXP.search(v).groupdict()
-                    mac = vnic_data.pop("mac")
+                    # vnic_data = self.VM_REGEXP.search(v).groupdict()
+                    mac = v.get("mac")
                     iface = guest_ifaces.get(mac)
                     iface_ipv4 = "Undefined"
                     iface_ipv6 = "Undefined"
-                    if vnic_data:
+                    if v:
                         for ip in iface.get(IP_LIST, []):
                             if ip.get(ADDRESS_TYPE) == "ipv4":
                                 iface_ipv4 = ip.get(IP_ADDRESS)
                             elif ip.get(ADDRESS_TYPE) == "ipv6":
                                 iface_ipv6 = ip.get(IP_ADDRESS)
-                        result[mac] = vnic_data.update(
+                        result[mac] = v.update(
                             {"name": k,
                              "index": k.replace("net", ""),
                              "guest_name": iface.get(IFACE_NAME),
-                             "mac": iface.get(MAC),
+                             "guest_mac": iface.get(MAC),
                              "ipv4": iface_ipv4,
                              "ipv6": iface_ipv6,
                              }
@@ -268,7 +265,7 @@ class ProxmoxHandler:
 
     def attach_interface(self,
                          network_bridge: str,
-                         instance_id: str,
+                         instance_id: int,
                          vlan_tag: int,
                          vnic_id: int,
                          interface_type: str = "virtio",
@@ -291,7 +288,28 @@ class ProxmoxHandler:
             upid=upid,
             msg=f"Failed to attach interface {vnic_id} during {{attempt*timeout}} sec"
         )
-        return self.obj.get_mac_address_by_interface_id(interface_id=vnic_id)
+        return self.get_mac_address_by_interface_id(
+            instance_id=instance_id, interface_id=vnic_id)
+
+    def detach_interface(self,
+                         instance_id: int,
+                         vnic_id: int,
+                         ) -> str:
+        """Attach interface to Virtual Machine."""
+        node = self.get_node_by_vmid(instance_id)
+        upid = self._obj.detach_interface(
+            node=node,
+            instance_id=instance_id,
+            interface_id=vnic_id,
+        )
+        # link_down=true
+        self._task_waiter(
+            node=node,
+            upid=upid,
+            msg=f"Failed to attach interface {vnic_id} during {{attempt*timeout}} sec"
+        )
+        return self.get_mac_address_by_interface_id(
+            instance_id=instance_id, interface_id=vnic_id)
 
     def get_snapshots_list(self, instance_id: int) -> list[int | bytes]:
         """Get list of existing snapshots."""

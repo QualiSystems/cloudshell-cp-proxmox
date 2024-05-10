@@ -148,9 +148,6 @@ def get_existed_port_group_name(action: ProxmoxConnectivityActionModel) -> str |
 
 @define
 class NetworkSettings:
-    name: str
-    old_name: str
-    existed: bool
     switch_name: str
     vlan_id: int
     port_mode: ConnectionModeEnum
@@ -171,20 +168,7 @@ class NetworkSettings:
         enable_firewall = vlan_service.enable_firewall
         switch = vlan_service.switch_name or resource_config.default_bridge
 
-        if name := (old_name := get_existed_port_group_name(action)):
-            existed = True
-        else:
-            existed = False
-            old_name = generate_port_group_name(switch, vlan_id, port_mode)
-            name = generate_port_group_name_v2(
-                dv_switch_name=switch,
-                vlan_id=vlan_id,
-                port_mode=port_mode,
-            )
         return cls(
-            name=name,
-            old_name=old_name,
-            existed=existed,
             switch_name=switch,
             vlan_id=vlan_id,
             port_mode=port_mode,

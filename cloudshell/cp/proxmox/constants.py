@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import re
+
 SHELL_NAME = "Proxmox Cloud Provider 2G"
 STATIC_SHELL_NAME = "Generic Static Proxmox VM 2G"
 
@@ -28,3 +30,10 @@ SNAPSHOT_TYPE = "proxmox_snapshot"
 
 CI_USER = "ciuser"
 CI_PASSWORD = "cipassword"
+
+INSTANCE_CFG_TAGS = "tags"
+INSTANCE_CFG_DESCRIPTION = "description"
+
+INSTANCE_CFG_EXC_KEYS = [INSTANCE_CFG_TAGS, INSTANCE_CFG_DESCRIPTION]
+
+MAC_REGEXP = re.compile(r"([0-9A-Fa-f]{2}[:-]){5}([0-9A-Fa-f]{2})+")

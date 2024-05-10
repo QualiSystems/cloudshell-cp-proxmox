@@ -20,6 +20,7 @@ from cloudshell.cp.proxmox.exceptions import (
 )
 
 from cloudshell.cp.proxmox.constants import COOKIES, TOKEN
+from cloudshell.cp.proxmox.utils.instance_config_helper import convert_instance_config
 from cloudshell.cp.proxmox.utils.instance_type import InstanceType
 
 
@@ -146,6 +147,37 @@ class ProxmoxAutomationAPI(BaseAPIClient):
                                 f"Cannot get data for {retries*timeout} sec."
                             )
 
+                return inner
+            return wrapper
+
+        @classmethod
+        def get_instance_data(
+            cls,
+            retries: int = 6,
+            timeout: int = 5,
+            raise_on_timeout: bool = True
+        ):
+            def wrapper(decorated):
+                def inner(*args, **kwargs):
+
+                    exception = None
+                    attempt = 0
+                    while attempt < retries:
+                        try:
+                            response = decorated(*args, **kwargs).json()["data"]
+                            return convert_instance_config(response)
+                        except Exception as e:
+                            exception = e
+                            time.sleep(timeout)
+                            attempt += 1
+
+                    if raise_on_timeout:
+                        if exception:
+                            raise exception
+                        else:
+                            raise BaseProxmoxException(
+                                f"Cannot get data for {retries*timeout} sec."
+                            )
                 return inner
             return wrapper
 
@@ -340,6 +372,26 @@ class ProxmoxAutomationAPI(BaseAPIClient):
         if mac_address:
             data += f":{mac_address}"
         data += f",bridge={network_bridge},tag={vlan_tag},firewall={int(enable_firewall)}"
+        return self._do_put(
+            path=f"nodes/{node}/{self.instance_type.value}/{instance_id}/config",
+            http_error_map=error_map,
+            json={f"net{interface_id}": f"{data}"},
+            cookies={COOKIES: self.ticket}
+        )
+
+    @Decorators.get_data()
+    def detach_interface(
+            self,
+            node: str,
+            interface_id: int,
+            instance_id: int,
+    ) -> requests.Response:
+        """"""
+        error_map = {
+            400: ParamsException,
+            401: AuthAPIException,
+        }
+        data = "link_down=True"
         return self._do_put(
             path=f"nodes/{node}/{self.instance_type.value}/{instance_id}/config",
             http_error_map=error_map,
@@ -652,7 +704,7 @@ class ProxmoxAutomationAPI(BaseAPIClient):
             cookies={COOKIES: self.ticket}
         )
 
-    @Decorators.get_data()
+    @Decorators.get_instance_data()
     def get_instance_config(self, node: str, instance_id: int) -> requests.Response:
         """"""
         error_map = {
@@ -688,6 +740,7 @@ if __name__ == "__main__":
         # instance_type=InstanceType.VM
     )
     api.connect()
+    resss = api.get_instance_config(node="proxmox1", instance_id=101)
     res = api.attach_interface(node="proxmox1", instance_id=101,
                                network_bridge="vmbr1", interface_id=3, vlan_tag=65)
     res1 = api.get_instance_ifaces(node="proxmox1", instance_id=101)
