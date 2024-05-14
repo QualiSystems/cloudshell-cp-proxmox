@@ -14,6 +14,9 @@ def convert_instance_config(response):
                         if MAC_REGEXP.search(value):
                             str_to_dict["type"] = key
                             str_to_dict["mac"] = value
+                            continue
+                        else:
+                            str_to_dict[key] = value
                     else:
                         str_to_dict[key] = value
                 elif ":" in i:
