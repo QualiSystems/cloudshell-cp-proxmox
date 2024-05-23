@@ -37,13 +37,12 @@ class VMNetworkActions:
 
     def _find_vm_ip(
         self,
-        api: ProxmoxHandler,
-        vm: int,
+        instance_network_details: dict[str, dict],
         is_ip_pass_regex: callable[[str | None], bool],
     ) -> str | None:
-        logger.debug(f"Searching for the IPv4 address of the {vm}")
+        logger.debug(f"Searching for the Instance IPv4 address of the")
 
-        for vnic in api.get_instance_ifaces_info(vm).values():
+        for vnic in instance_network_details.values():
             ip = vnic.get("ipv4")
             name = vnic.get("name")
             logger.debug(f"Checking {name} with ip {ip}")
@@ -53,8 +52,8 @@ class VMNetworkActions:
 
     def get_vm_ip(
         self,
-        api: ProxmoxHandler,
         vm_id: int,
+        instance_network_details: dict[str, dict],
         ip_regex: str | None = None,
         timeout: int = 0,
     ) -> str:
@@ -64,7 +63,7 @@ class VMNetworkActions:
 
         while True:
             with self._cancellation_manager:
-                ip = self._find_vm_ip(api, vm_id, is_ip_pass_regex)
+                ip = self._find_vm_ip(instance_network_details, is_ip_pass_regex)
             if ip:
                 break
             if datetime.now() > timeout_time:

@@ -11,6 +11,7 @@ from cloudshell.cp.core.request_actions.models import (
     VmDetailsProperty,
 )
 
+from cloudshell.cp.proxmox.actions.vm_network import VMNetworkActions
 from cloudshell.cp.proxmox.exceptions import InstanceIsNotRunningException
 from cloudshell.cp.proxmox.models.deploy_app import (
     BaseProxmoxDeployApp,
@@ -74,15 +75,25 @@ class VMDetailsActions:
     def _prepare_vm_network_data(
             self,
             instance_id: int,
+            app_model: APP_MODEL_TYPES
     ) -> list[VmDetailsNetworkInterface]:
         """Prepare VM Network data."""
         logger.info(f"Preparing VM Details network data for the {instance_id}")
 
         network_interfaces = []
+        network_actions = VMNetworkActions(self._resource_conf,
+                                           self._cancellation_manager)
 
-        for mac, iface in self._get_instance_interfaces_with_retries(
-                instance_id=instance_id
-        ).items():
+        vnics_data = self._get_instance_interfaces_with_retries(instance_id=instance_id)
+        primary_ip = network_actions.get_vm_ip(instance_id,
+                                               vnics_data,
+                                               ip_regex=app_model.ip_regex,
+                                               timeout=3,
+                                               )
+
+        for mac, iface in vnics_data.items():
+            vlan_id = iface.get("tag", "")
+            is_predefined = vlan_id in self._resource_conf.reserved_networks
             network_data = [
                 VmDetailsProperty(key="IP", value=iface.get("ipv4")),
                 VmDetailsProperty(key="MAC Address", value=mac),
@@ -98,12 +109,21 @@ class VMDetailsActions:
                 ip = str(ipaddress.ip_address(iface["ipv4"]))
             except ValueError:
                 pass
+            is_primary = primary_ip == ip if primary_ip else False
 
             interface = VmDetailsNetworkInterface(
-                interfaceId=iface["mac"],
+                interfaceId=mac,
+                networkId=str(vlan_id),
+                isPrimary=is_primary,
+                isPredefined=is_predefined,
                 networkData=network_data,
                 privateIpAddress=ip,
             )
+            # interface = VmDetailsNetworkInterface(
+            #     interfaceId=iface["mac"],
+            #     networkData=network_data,
+            #     privateIpAddress=ip,
+            # )
             network_interfaces.append(interface)
 
         return network_interfaces
@@ -138,7 +158,8 @@ class VMDetailsActions:
             # instance_id = int(app_model.vmdetails.uid)
             instance_details = self._prepare_common_vm_instance_data(
                 instance_id=instance_id)  # noqa: E501
-            network_details = self._prepare_vm_network_data(instance_id=instance_id)
+            network_details = self._prepare_vm_network_data(instance_id=instance_id,
+                                                            app_model=app_model)
         except Exception as e:
             logger.exception("Failed to created VM Details:")
             details = VmDetailsData(appName=app_name, errorMessage=str(e))

@@ -722,7 +722,8 @@ class ProxmoxAutomationAPI(BaseAPIClient):
         # self.session.headers.update({})
 
         return self._do_get(
-            path=f"/nodes/{node}/{self.instance_type.value}/{instance_id}/agent/network-get-interfaces",
+            path=f"/nodes/{node}/{self.instance_type.value}/"
+                 f"{instance_id}/agent/get-osinfo",
             http_error_map=error_map,
             cookies={COOKIES: self.ticket}
         )

@@ -21,9 +21,10 @@ def refresh_ip(
         raise VmIsNotPowered(instance_id)
 
     actions = VMNetworkActions(resource_conf, cancellation_manager)
+    instance_network_details = si.get_instance_ifaces_info(instance_id)
     ip = actions.get_vm_ip(
-            si,
             instance_id,
+            instance_network_details,
             ip_regex=deployed_app.ip_regex,
             timeout=deployed_app.refresh_ip_timeout,
         )

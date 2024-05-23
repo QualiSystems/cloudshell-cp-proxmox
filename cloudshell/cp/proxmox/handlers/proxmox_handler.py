@@ -218,8 +218,8 @@ class ProxmoxHandler:
                         # vnic_data = self.VM_REGEXP.search(v).groupdict()
                         mac = v.get("mac")
                         iface = guest_ifaces.get(mac, {})
-                        iface_ipv4 = "NA"
-                        iface_ipv6 = "NA"
+                        iface_ipv4 = None
+                        iface_ipv6 = None
                         if v:
                             for ip in iface.get(IP_LIST, []):
                                 if ip.get(ADDRESS_TYPE) == "ipv4":
@@ -463,5 +463,5 @@ if __name__ == "__main__":
     password = "Password1"
     client = ProxmoxHandler.connect(host=address, user=username, password=password,
                                     instance_type=InstanceType.VM)
-    res = client.delete_instance(instance_id=112)
+    res = client.get_instance_os(instance_id=113)
     print(res)
