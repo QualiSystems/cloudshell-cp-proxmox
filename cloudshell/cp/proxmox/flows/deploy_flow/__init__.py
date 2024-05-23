@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from .base_flow import AbstractProxmoxDeployFlow
 from .from_qemu import ProxmoxDeployVMFromQEMUImageFlow
-from .from_container_image import ProxmoxDeployContainerFromImageFlow
+from .from_container import ProxmoxDeployContainerFromImageFlow
 from .from_template import ProxmoxDeployInstanceFromTemplateFlow
 from .from_vm import ProxmoxDeployInstanceFromVMFlow
 
@@ -12,7 +12,8 @@ from cloudshell.cp.proxmox.utils.instance_type import InstanceType
 DEPLOY_APP_TO_FLOW_PARAMS = (
     (deploy_app.InstanceFromVMDeployApp, (ProxmoxDeployInstanceFromVMFlow, InstanceType.VM)),
     (deploy_app.InstanceFromTemplateDeployApp, (ProxmoxDeployInstanceFromTemplateFlow, InstanceType.VM)),
-    (deploy_app.ContainerFromImageDeployApp, (ProxmoxDeployContainerFromImageFlow, InstanceType.CONTAINER)),
+    (deploy_app.InstanceFromContainerImageDeployApp, (ProxmoxDeployContainerFromImageFlow,
+                                               InstanceType.CONTAINER)),
     (deploy_app.InstanceFromQEMUImageDeployApp, (ProxmoxDeployVMFromQEMUImageFlow, InstanceType.CONTAINER)),
 )
 

@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import logging
+
 from attrs import define
 from typing import TYPE_CHECKING
 
@@ -16,15 +18,20 @@ if TYPE_CHECKING:
     )
 
 
+logger = logging.getLogger(__name__)
+
+
 @define
 class ProxmoxGetVMDetailsFlow(AbstractVMDetailsFlow):
-    _si: ProxmoxHandler
+    _ph: ProxmoxHandler
     _resource_config: ProxmoxResourceConfig
     _cancellation_manager: CancellationContextManager
+    _logger = logger
 
     def _get_vm_details(self, deployed_app: BaseProxmoxDeployedApp) -> VmDetailsData:
+        instance_id = int(deployed_app.vmdetails.uid)
         return VMDetailsActions(
-            self._si,
+            self._ph,
             self._resource_config,
             self._cancellation_manager,
-        ).create(deployed_app)
+        ).create(instance_id, deployed_app)

@@ -26,6 +26,9 @@ class InvalidCommandParam(BaseProxmoxException):
 class AuthAPIException(BaseProxmoxException):
     """Wrong ticket Exception."""
 
+class InstanceIsNotRunningException(BaseProxmoxException):
+    """Instance is not running."""
+
 
 class ParamsException(BaseProxmoxException):
     """Parameter verification failed."""

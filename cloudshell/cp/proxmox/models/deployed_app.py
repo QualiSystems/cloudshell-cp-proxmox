@@ -17,6 +17,7 @@ from cloudshell.cp.proxmox.models.base_deployment_app import (
     ProxmoxInstanceFromTemplateDeploymentAppAttributeNames,
     ProxmoxInstanceFromContainerDeploymentAppAttributeNames,
     ProxmoxInstanceFromContainerImageDeploymentAppAttributeNames,
+    ProxmoxInstanceFromQEMUImageDeploymentAppAttributeNames,
 )
 
 
@@ -42,6 +43,12 @@ class InstanceFromVMDeployedApp(BaseProxmoxDeployedApp):
     DEPLOYMENT_PATH = constants.VM_FROM_VM_DEPLOYMENT_PATH
     vm_id = ResourceAttrRODeploymentPath(ATTR_NAMES.vm_id)
     sm_snapshot = ResourceAttrRODeploymentPath(ATTR_NAMES.snapshot)
+
+class InstanceFromQEMUImageDeployedApp(BaseProxmoxDeployedApp):
+    ATTR_NAMES = ProxmoxInstanceFromQEMUImageDeploymentAppAttributeNames
+
+    DEPLOYMENT_PATH = constants.VM_FROM_VM_DEPLOYMENT_PATH
+    image_url = ResourceAttrRODeploymentPath(ATTR_NAMES.image_url)
 
 
 class InstanceFromTemplateDeployedApp(BaseProxmoxDeployedApp):

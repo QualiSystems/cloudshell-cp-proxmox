@@ -13,6 +13,7 @@ from cloudshell.cp.core.request_actions.models import (
 from cloudshell.cp.core.rollback import RollbackCommandsManager
 from cloudshell.cp.core.utils.name_generator import NameGenerator
 
+from cloudshell.cp.proxmox.actions.vm_details import VMDetailsActions
 from cloudshell.cp.proxmox.flows.deploy_flow.commands import CloneVMCommand
 
 from cloudshell.cp.proxmox.handlers.proxmox_handler import ProxmoxHandler
@@ -49,15 +50,18 @@ class AbstractProxmoxDeployFlow(AbstractDeployFlow):
         """"""
         pass
 
-    @abstractmethod
     def _prepare_vm_details_data(
-            self,
-            deployed_vm_id: int,
-            deploy_app: BaseProxmoxDeployApp
+        self,
+        deployed_vm_id: int,
+        deploy_app: BaseProxmoxDeployApp
     ) -> VmDetailsData:
         """Prepare CloudShell VM Details model."""
-        pass
-
+        vm_details_actions = VMDetailsActions(
+            self.proxmox_api,
+            self._resource_config,
+            self._cancellation_manager,
+        )
+        return vm_details_actions.create(deployed_vm_id, deploy_app)
     @abstractmethod
     def _get_source_instance(self, deploy_app: BaseProxmoxDeployApp):
         """"""
@@ -79,7 +83,7 @@ class AbstractProxmoxDeployFlow(AbstractDeployFlow):
 
     def _get_target_storage(self, deploy_app: BaseProxmoxDeployApp) -> str:
         """Get target storage."""
-        return deploy_app.target_storage
+        return deploy_app.target_storage or self._resource_config.shared_storage
 
     def _get_target_node(self, deploy_app: BaseProxmoxDeployApp) -> str:
         """Get target node name."""

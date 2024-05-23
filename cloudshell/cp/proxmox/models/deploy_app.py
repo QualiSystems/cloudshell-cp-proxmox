@@ -65,7 +65,7 @@ class InstanceFromContainerImageDeployApp(BaseProxmoxDeployApp):
     container_image = ResourceAttrRODeploymentPath(ATTR_NAMES.container_image)
 
 
-class InstanceFromContainerApp(BaseProxmoxDeployApp):
+class InstanceFromContainerDeployApp(BaseProxmoxDeployApp):
     ATTR_NAMES = ProxmoxInstanceFromContainerDeploymentAppAttributeNames
 
     DEPLOYMENT_PATH = constants.CONTAINER_FROM_IMAGE_DEPLOYMENT_PATH

@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import logging
 import ssl
 import time
 from abc import abstractmethod
@@ -16,12 +17,15 @@ import urllib3
 from cloudshell.cp.proxmox.exceptions import (
     BaseProxmoxException,
     AuthAPIException,
-    ParamsException, UnsuccessfulOperationException,
+    ParamsException, UnsuccessfulOperationException, InstanceIsNotRunningException,
 )
 
 from cloudshell.cp.proxmox.constants import COOKIES, TOKEN
 from cloudshell.cp.proxmox.utils.instance_config_helper import convert_instance_config
 from cloudshell.cp.proxmox.utils.instance_type import InstanceType
+
+logger = logging.getLogger(__name__)
+
 
 
 @define
@@ -59,6 +63,7 @@ class BaseAPIClient:
         try:
             raise_for_status and res.raise_for_status()
         except requests.exceptions.HTTPError as caught_err:
+            logger.exception(f"HTTP Error: {caught_err}")
             http_code = caught_err.response.status_code
             err = http_error_map.get(http_code, BaseProxmoxException)
             raise err from caught_err
@@ -280,6 +285,11 @@ class ProxmoxAutomationAPI(BaseAPIClient):
             400: ParamsException,
             401: AuthAPIException,
         }
+        if not r_type:
+            if self.instance_type == InstanceType.VM:
+                r_type = "vm"
+            else:
+                r_type = "lxc"
         # self.session.headers.update({})
 
         return (self._do_get(
@@ -420,11 +430,13 @@ class ProxmoxAutomationAPI(BaseAPIClient):
         error_map = {
             400: ParamsException,
             401: AuthAPIException,
+            500: InstanceIsNotRunningException
         }
         # self.session.headers.update({})
 
         return self._do_get(
-            path=f"nodes/{node}/{self.instance_type.value}/{instance_id}/status/current",
+            path=f"nodes/{node}/{self.instance_type.value}/{instance_id}"
+                 f"/status/current",
             http_error_map=error_map,
             cookies={COOKIES: self.ticket}
         )
@@ -453,6 +465,7 @@ class ProxmoxAutomationAPI(BaseAPIClient):
         self._do_post(
             path=f"nodes/{node}/{self.instance_type.value}/{instance_id}/status/start",
             http_error_map=error_map,
+            json={"node": node, "vmid": instance_id},
             cookies={COOKIES: self.ticket}
         )
 
@@ -470,6 +483,7 @@ class ProxmoxAutomationAPI(BaseAPIClient):
         self._do_post(
             path=f"nodes/{node}/{self.instance_type.value}/{instance_id}/status/stop",
             http_error_map=error_map,
+            json={"node": node, "vmid": instance_id},
             cookies={COOKIES: self.ticket}
         )
 
@@ -487,27 +501,30 @@ class ProxmoxAutomationAPI(BaseAPIClient):
         self._do_post(
             path=f"nodes/{node}/{self.instance_type.value}/{instance_id}/status/shutdown",
             http_error_map=error_map,
+            json={"node": node, "vmid": instance_id},
             cookies={COOKIES: self.ticket}
         )
 
     # @Decorators.is_success
+    @Decorators.get_data()
     def clone_instance(
             self,
             node: str,
             instance_id: int,
+            new_instance_id: int,
             name: str = None,
             snapshot: str = None,
             full: bool = None,
             target_storage: str = None,
             target_node: str = None,
-    ) -> int:
+    ) -> requests.Response:
         """Create VM."""
         error_map = {
             400: ParamsException,
             401: AuthAPIException,
         }
 
-        new_instance_id = self.get_next_id()
+        # new_instance_id = self.get_next_id()
         data = {
             "newid": new_instance_id,
             "node": node,
@@ -515,7 +532,7 @@ class ProxmoxAutomationAPI(BaseAPIClient):
         }
 
         if name:
-            data["name"] = name
+            data["name"] = name.replace("_", "-")
 
         if snapshot:
             data["snapname"] = snapshot
@@ -534,22 +551,22 @@ class ProxmoxAutomationAPI(BaseAPIClient):
         if target_node:
             data["target"] = target_node
 
-        self._do_post(
-            path=f"nodes/{node}/{self.instance_type.value}/{instance_id}/clone",
+        upid = self._do_post(
+            path=f"nodes/{node}/{self.instance_type.value.lower()}/{instance_id}/clone",
             json=data,
             http_error_map=error_map,
             cookies={COOKIES: self.ticket}
         )
 
-        return int(new_instance_id)
+        return upid
 
     # @Decorators.is_success
     def delete_instance(
             self,
             node: str,
             instance_id: int,
-            destroy_unref_disk: bool = False,
-            purge: bool = False,
+            destroy_unref_disk: bool = True,
+            purge: bool = True,
             skip_lock: bool = False
     ) -> requests.Response:
         """"""
@@ -560,8 +577,12 @@ class ProxmoxAutomationAPI(BaseAPIClient):
         }
 
         return self._do_delete(
-            path=f"nodes/{node}/{self.instance_type.value}/{instance_id}?purge={int(purge)}&destroy-unreferenced-disks={int(destroy_unref_disk)}",
+            path=f"nodes/{node}/{self.instance_type.value}/{instance_id}?node="
+                 f"{node}&vmid={int(instance_id)}&"
+                 f"purge={int(purge)}&destroy-unreferenced-disks={int(destroy_unref_disk)}",
             http_error_map=error_map,
+            # json={"node": node, "vmid": instance_id, "purge": f"{int(purge)}",
+            #       "destroy-unreferenced-disks": f"{int(destroy_unref_disk)}"},
             cookies={COOKIES: self.ticket}
         )
 
@@ -667,7 +688,8 @@ class ProxmoxAutomationAPI(BaseAPIClient):
         # self.session.headers.update({})
 
         response = self._do_get(
-            path=f"/nodes/{node}/{self.instance_type.value}/{instance_id}/config",
+            path=f"/nodes/{node}/{self.instance_type.value}/{instance_id}"
+                 f"/agent/network-get-interfaces",
             http_error_map=error_map,
             cookies={COOKIES: self.ticket}
         )
@@ -695,6 +717,7 @@ class ProxmoxAutomationAPI(BaseAPIClient):
         error_map = {
             400: ParamsException,
             401: AuthAPIException,
+            500: InstanceIsNotRunningException
         }
         # self.session.headers.update({})
 
@@ -737,14 +760,24 @@ if __name__ == "__main__":
         # address="192.168.26.120",
         username="root@pam",
         password="Password1",
-        # instance_type=InstanceType.VM
+        # instance_type=InstanceType.CONTAINER
     )
     api.connect()
-    resss = api.get_instance_config(node="proxmox1", instance_id=101)
+    # resss1 = api.get_resources()
+    resss1 = api.get_instance_config(node="proxmox1", instance_id=101)
     res = api.attach_interface(node="proxmox1", instance_id=101,
                                network_bridge="vmbr1", interface_id=3, vlan_tag=65)
-    res1 = api.get_instance_ifaces(node="proxmox1", instance_id=101)
-    res = api.get_task_status(node="proxmox1", upid="UPID:proxmox1:0034308A:11F8AFA1:660C23DC:qmsnapshot:100:root@pam:")
+    # api = ProxmoxAutomationAPI(
+    #     address="192.168.105.21",
+    #     # address="192.168.26.120",
+    #     username="root@pam",
+    #     password="Password1",
+    #     instance_type=InstanceType.CONTAINER
+    # )
+    # api.connect()
+    # resss = api.get_instance_config(node="proxmox1", instance_id=106)
+    # res1 = api.get_instance_ifaces(node="proxmox1", instance_id=101)
+    # res = api.get_task_status(node="proxmox1", upid="UPID:proxmox1:0034308A:11F8AFA1:660C23DC:qmsnapshot:100:root@pam:")
 
     # print(get_node_by_vmid(instance_id=102))
     # print(api.version())
@@ -754,9 +787,11 @@ if __name__ == "__main__":
     # print(api.get_next_id())
     # for snap in api.get_snapshot_list(node="proxmox1", instance_id=100):
     #     print(snap)
-
+    # rrr = api.get_instance_status(node="proxmox1", instance_id=101)
     # api.create_snapshot(node="proxmox1", instance_id=100, name="working")
-    # api.clone_vm(node="pve", instance_id=100)
+    # api.clone_instance(node="proxmox1", instance_id=101, name="working-12")
+    # api.clone_instance(node="proxmox1", instance_id=101, target_storage="",
+    #                    target_node="", full=True, name="test_clone", snapshot="")
 
     # for k,v in api.get_node_report(node="proxmox8").items():
     #     print(f"{k} : {v}")

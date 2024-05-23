@@ -6,8 +6,15 @@ shell_dir = os.path.abspath(
     os.path.join(
         current_dir,
         os.pardir,
-        "\Proxmox-Cloud-Provide-Shell-2G"
+        "Proxmox-Cloud-Provide-Shell-2G"
     )
+# shell_dir = os.path.abspath(
+#     os.path.join(
+#         current_dir,
+#         os.pardir,
+#         "VMware-vCenter-Cloud-Provider-Shell-2G"
+#     )
+# )
 )
 with open(os.path.join(current_dir, "version.txt"), "r") as f:
     version = f.read()

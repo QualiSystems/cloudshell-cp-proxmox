@@ -34,17 +34,3 @@ class ProxmoxDeployInstanceFromTemplateFlow(AbstractProxmoxDeployFlow):
     def _is_full_disk_clone(self, deploy_app: InstanceFromTemplateDeployApp) -> bool:
         """Determine is disk cloning full or not."""
         return deploy_app.clone_mode or False
-
-    def _prepare_vm_details_data(
-        self,
-        deployed_vm_id: int,
-        deploy_app: InstanceFromTemplateDeployApp
-    ) -> VmDetailsData:
-        """Prepare CloudShell VM Details model."""
-        vm_details_actions = VMDetailsActions(
-            self.proxmox_api,
-            self._resource_config,
-            self._cancellation_manager,
-        )
-        return vm_details_actions.create(deployed_vm_id, deploy_app)
-

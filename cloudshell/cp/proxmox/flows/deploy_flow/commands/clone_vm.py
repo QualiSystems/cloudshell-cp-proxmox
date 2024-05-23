@@ -33,7 +33,7 @@ class CloneVMCommand(RollbackCommand):
 
     def _execute(self) -> int:
         try:
-            self._cloned_vm = self._api.clone_instance(
+            self._cloned_vm_id = self._api.clone_instance(
                 instance_id=self._src_instance_id,
                 instance_name=self._instance_name,
                 snapshot=self._vm_snapshot,
@@ -41,7 +41,7 @@ class CloneVMCommand(RollbackCommand):
                 target_storage=self._target_storage,
                 target_node=self._target_node,
             )
-        except Exception:
+        except Exception as e:
             raise
 
         return self._cloned_vm_id

@@ -43,8 +43,7 @@ class VMNetworkActions:
     ) -> str | None:
         logger.debug(f"Searching for the IPv4 address of the {vm}")
 
-        node = api.get_node_by_vmid(vm)
-        for vnic in api.get_vm_ifaces_info(node, vm):
+        for vnic in api.get_instance_ifaces_info(vm).values():
             ip = vnic.get("ipv4")
             name = vnic.get("name")
             logger.debug(f"Checking {name} with ip {ip}")

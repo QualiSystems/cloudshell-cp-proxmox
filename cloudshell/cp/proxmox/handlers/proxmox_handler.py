@@ -1,16 +1,15 @@
 from __future__ import annotations
 
 import logging
-import re
 import time
-from functools import cached_property, partial
+from functools import cached_property
 from typing import TYPE_CHECKING, Any
 
 from attrs import define
 
 from cloudshell.cp.proxmox.exceptions import (
     VmDoesNotExistException,
-    UnsuccessfulOperationException,
+    UnsuccessfulOperationException, InstanceIsNotRunningException,
 )
 from cloudshell.cp.proxmox.resource_config import ProxmoxResourceConfig
 from cloudshell.cp.proxmox.handlers.rest_api_handler import ProxmoxAutomationAPI
@@ -27,6 +26,7 @@ from cloudshell.cp.proxmox.constants import (
     CI_PASSWORD,
 )
 from cloudshell.cp.proxmox.utils.instance_type import InstanceType
+from cloudshell.cp.proxmox.utils.power_state import PowerState
 
 if TYPE_CHECKING:
     from typing_extensions import Self
@@ -37,7 +37,7 @@ RETRIES = 6
 TIMEOUT = 5
 
 
-@define
+@define(slots=False)
 class ProxmoxHandler:
     # VM_REGEXP = re.compile(
     #     r"^(?P<type>\w+)=(?P<mac>([0-9A-Fa-f]{2}[:-]){5}([0-9A-Fa-f]{2})+),"
@@ -57,6 +57,9 @@ class ProxmoxHandler:
 
     def __enter__(self) -> Self:
         return self
+
+    def __exit__(self, exc_type, exc_val, exc_tb) -> None:
+        pass
 
     @classmethod
     def from_config(
@@ -79,10 +82,11 @@ class ProxmoxHandler:
         api.connect()
         return cls(api)
 
-    @cached_property
+    # @cached_property
+    @property
     def vmid_to_node(self):
         return {
-            res["vmid"]: res["node"] for res in self._obj.get_resources(r_type="vm")
+            res["vmid"]: res["node"] for res in self._obj.get_resources()
         }
 
     def version(self):
@@ -125,12 +129,13 @@ class ProxmoxHandler:
                 f"Skip deleting."
             )
 
-    def get_instance_status(self, instance_id: int) -> str:
+    def get_instance_status(self, instance_id: int, node: str = None) -> str:
         """Get Virtual Machine status."""
         try:
-            node = self.get_node_by_vmid(instance_id)
+            if not node:
+                node = self.get_node_by_vmid(instance_id)
             data = self._obj.get_instance_status(node=node, instance_id=instance_id)
-            return data.get("status", "stopped")
+            return PowerState.from_str(data.get("status", "stopped"))
         except VmDoesNotExistException as e:
             logger.error(
                 f"Virtual machine with instance_id {instance_id} doesn't exist."
@@ -163,7 +168,8 @@ class ProxmoxHandler:
             )
             raise e
 
-    def get_mac_address_by_interface_id(self, instance_id: int, interface_id: int) -> str:
+    def get_mac_address_by_interface_id(self, instance_id: int,
+                                        interface_id: int) -> str:
         """Get MAC address of Virtual Machine interface."""
         try:
             node = self.get_node_by_vmid(instance_id)
@@ -193,33 +199,66 @@ class ProxmoxHandler:
         result = {}
         try:
             node = self.get_node_by_vmid(instance_id)
-            config = self._obj.get_instance_config(node=node, instance_id=instance_id)
-            guest_data = self._obj.get_net_ifaces(node=node, instance_id=instance_id)
-            guest_ifaces = {x.get(MAC): x for x in guest_data.get("result", [])}
-            for k, v in config.items():
-                if k.startswith("net"):
-                    # vnic_data = self.VM_REGEXP.search(v).groupdict()
-                    mac = v.get("mac")
-                    iface = guest_ifaces.get(mac)
-                    iface_ipv4 = "Undefined"
-                    iface_ipv6 = "Undefined"
-                    if v:
-                        for ip in iface.get(IP_LIST, []):
-                            if ip.get(ADDRESS_TYPE) == "ipv4":
-                                iface_ipv4 = ip.get(IP_ADDRESS)
-                            elif ip.get(ADDRESS_TYPE) == "ipv6":
-                                iface_ipv6 = ip.get(IP_ADDRESS)
-                        result[mac] = v.update(
-                            {"name": k,
-                             "index": k.replace("net", ""),
-                             "guest_name": iface.get(IFACE_NAME),
-                             "guest_mac": iface.get(MAC),
-                             "ipv4": iface_ipv4,
-                             "ipv6": iface_ipv6,
-                             }
-                        )
+            if self._obj.instance_type == InstanceType.VM:
+                config = self._obj.get_instance_config(
+                    node=node,
+                    instance_id=instance_id
+                )
+                guest_data = {}
+                try:
+                    guest_data = self._obj.get_net_ifaces(
+                        node=node,
+                        instance_id=instance_id
+                    )
+                except Exception:
+                    pass
+                guest_ifaces = {x.get(MAC): x for x in guest_data.get("result", [])}
+                for k, v in config.items():
+                    if k.startswith("net"):
+                        # vnic_data = self.VM_REGEXP.search(v).groupdict()
+                        mac = v.get("mac")
+                        iface = guest_ifaces.get(mac, {})
+                        iface_ipv4 = "NA"
+                        iface_ipv6 = "NA"
+                        if v:
+                            for ip in iface.get(IP_LIST, []):
+                                if ip.get(ADDRESS_TYPE) == "ipv4":
+                                    iface_ipv4 = ip.get(IP_ADDRESS)
+                                elif ip.get(ADDRESS_TYPE) == "ipv6":
+                                    iface_ipv6 = ip.get(IP_ADDRESS)
+                            result[mac] = v
+                            result[mac] |= {"name": k,
+                                            "index": k.replace("net", ""),
+                                            "guest_name": iface.get(IFACE_NAME),
+                                            "guest_mac": iface.get(MAC),
+                                            "ipv4": iface_ipv4,
+                                            "ipv6": iface_ipv6,
+                                            }
 
-            return result
+                return result
+            else:
+                config = self._obj.get_instance_config(
+                    node=node,
+                    instance_id=instance_id
+                )
+                for k, v in config.items():
+                    mac = v.get("mac")
+                    if mac:
+                        result[mac] = {
+                            "name": k,
+                            "firewall": v.get("firewall"),
+                            "type": v.get("type"),
+                            "tag": v.get("tag"),
+                            "bridge": v.get("bridge"),
+                            "index": k.replace("net"),
+                            "guest_name": v.get("name"),
+                            "guest_mac": mac,
+                            "ipv4": v.get("ip", "Undefined"),
+                            "ipv6": v.get("ip6", "Undefined"),
+                        }
+
+                return result
+
         except VmDoesNotExistException as e:
             logger.error(
                 f"Virtual machine with instance_id {instance_id} doesn't exist."
@@ -235,6 +274,8 @@ class ProxmoxHandler:
             os_name = data.get("result", {}).get("name")
             os_version = data.get("result", {}).get("version")
             return f"{os_name} {os_version}"
+        except InstanceIsNotRunningException:
+            return ""
         except VmDoesNotExistException as e:
             logger.error(
                 f"Virtual machine with instance_id {instance_id} doesn't exist."
@@ -372,9 +413,12 @@ class ProxmoxHandler:
         """Clone Virtual Machine."""
         node = self.get_node_by_vmid(instance_id)
 
-        new_instance_id = self._obj.clone_instance(
+        new_instance_id = self._obj.get_next_id()
+
+        upid = self._obj.clone_instance(
             node=node,
             instance_id=instance_id,
+            new_instance_id=new_instance_id,
             name=instance_name,
             snapshot=snapshot,
             full=full,
@@ -384,10 +428,14 @@ class ProxmoxHandler:
 
         self._task_waiter(
             node=node,
-            upid=str(new_instance_id),
+            upid=upid,
             msg=f"Failed to clone Instance {instance_name} "
-                f"during {{attempt*timeout}} seconds."
+                f"during {{attempt*timeout}} seconds.",
+            retries=60,
+            timeout=10
         )
+
+        self.get_instance_status(new_instance_id, node=target_node or node)
 
         return int(new_instance_id)
 
@@ -406,3 +454,14 @@ class ProxmoxHandler:
             upid=upid,
             msg=f"Failed to delete snapshot {name} during {{attempt*timeout}} sec"
         )
+
+
+if __name__ == "__main__":
+    address = "192.168.105.21"
+    # address="192.168.26.120",
+    username = "root@pam"
+    password = "Password1"
+    client = ProxmoxHandler.connect(host=address, user=username, password=password,
+                                    instance_type=InstanceType.VM)
+    res = client.delete_instance(instance_id=112)
+    print(res)

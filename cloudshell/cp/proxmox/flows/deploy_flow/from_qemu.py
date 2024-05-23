@@ -1,10 +1,10 @@
 from cloudshell.cp.core.request_actions.models import VmDetailsData
 
-from cloudshell.cp.proxmox.flows.deploy_flow import AbstractProxmoxDeployVMFlow
+from cloudshell.cp.proxmox.flows.deploy_flow import AbstractProxmoxDeployFlow
 from cloudshell.cp.proxmox.models.deploy_app import BaseProxmoxDeployApp
 
 
-class ProxmoxDeployVMFromQEMUImageFlow(AbstractProxmoxDeployVMFlow):
+class ProxmoxDeployVMFromQEMUImageFlow(AbstractProxmoxDeployFlow):
     def _get_vm_template(self, deploy_app: BaseProxmoxDeployApp):
         pass
 

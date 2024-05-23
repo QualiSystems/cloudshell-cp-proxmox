@@ -33,11 +33,11 @@ class ValidationActions:
         _is_not_empty(conf.address, "address")
         _is_not_empty(conf.user, conf.ATTR_NAMES.user)
         _is_not_empty(conf.password, conf.ATTR_NAMES.password)
-        _is_value_in(
-            conf.behavior_during_save,
-            BEHAVIOURS_DURING_SAVE,
-            conf.ATTR_NAMES.behavior_during_save,
-        )
+        # _is_value_in(
+        #     conf.behavior_during_save,
+        #     BEHAVIOURS_DURING_SAVE,
+        #     conf.ATTR_NAMES.behavior_during_save,
+        # )
 
 
 def _is_not_empty(value: str, attr_name: str):
