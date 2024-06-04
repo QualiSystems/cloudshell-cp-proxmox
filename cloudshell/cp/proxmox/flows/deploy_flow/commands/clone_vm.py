@@ -2,11 +2,12 @@ from __future__ import annotations
 
 from cloudshell.cp.core.cancellation_manager import CancellationContextManager
 from cloudshell.cp.core.rollback import RollbackCommand, RollbackCommandsManager
+from cloudshell.shell.core.driver_utils import GlobalLock
 
 from cloudshell.cp.proxmox.handlers.proxmox_handler import ProxmoxHandler
 
 
-class CloneVMCommand(RollbackCommand):
+class CloneVMCommand(RollbackCommand, GlobalLock):
     def __init__(
         self,
         api: ProxmoxHandler,
@@ -31,6 +32,7 @@ class CloneVMCommand(RollbackCommand):
         self._vm_snapshot = instance_snapshot
         self._cloned_vm_id: int | None = None
 
+    @GlobalLock.lock
     def _execute(self) -> int:
         try:
             self._cloned_vm_id = self._api.clone_instance(
