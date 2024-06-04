@@ -3,6 +3,7 @@ from __future__ import annotations
 import ipaddress
 import logging
 import time
+from contextlib import suppress
 from typing import TYPE_CHECKING, Union
 
 from cloudshell.cp.core.request_actions.models import (
@@ -12,7 +13,8 @@ from cloudshell.cp.core.request_actions.models import (
 )
 
 from cloudshell.cp.proxmox.actions.vm_network import VMNetworkActions
-from cloudshell.cp.proxmox.exceptions import InstanceIsNotRunningException
+from cloudshell.cp.proxmox.exceptions import InstanceIsNotRunningException, \
+    VMIPNotFoundException
 from cloudshell.cp.proxmox.models.deploy_app import (
     BaseProxmoxDeployApp,
 )
@@ -85,11 +87,14 @@ class VMDetailsActions:
                                            self._cancellation_manager)
 
         vnics_data = self._get_instance_interfaces_with_retries(instance_id=instance_id)
-        primary_ip = network_actions.get_vm_ip(instance_id,
-                                               vnics_data,
-                                               ip_regex=app_model.ip_regex,
-                                               timeout=3,
-                                               )
+        primary_ip = None
+        with suppress(VMIPNotFoundException):
+            primary_ip = network_actions.get_vm_ip(
+                self._ph,
+                instance_id,
+                ip_regex=app_model.ip_regex,
+                timeout=3,
+            )
 
         for mac, iface in vnics_data.items():
             vlan_id = iface.get("tag", "")
