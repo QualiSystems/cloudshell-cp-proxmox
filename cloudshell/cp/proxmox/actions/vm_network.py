@@ -58,7 +58,7 @@ class VMNetworkActions:
         ip_regex: str | None = None,
         timeout: int = 0,
     ) -> str:
-        logger.info(f"Getting IP address for the VM {vm_id} from the vCenter")
+        logger.info(f"Getting IP address for the VM {vm_id} from the Proxmox")
         timeout_time = datetime.now() + timedelta(seconds=timeout)
         is_ip_pass_regex = get_ip_regex_match_func(ip_regex)
 

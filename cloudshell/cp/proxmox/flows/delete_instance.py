@@ -24,5 +24,5 @@ class ProxmoxDeleteFlow:
 
     def delete(self) -> None:
         """Power ON Virtual Machine."""
-        logger.info(f"Powering On the {self._deployed_app.vmdetails.uid}")
+        logger.info(f"Powering Off and Deleting the {self._deployed_app.vmdetails.uid}")
         self._si.delete_instance(instance_id=int(self._deployed_app.vmdetails.uid))

@@ -57,19 +57,14 @@ class ProxmoxConnectivityFlow(AbcCloudProviderConnectivityFlow):
 
         for action in filter(is_set_action, actions):
             vm = self.get_target(action)
-            if vm in self._instance_interface_type_map:
+            if vm not in self._instance_interface_type_map:
                 self._instance_interface_type_map[vm] = (
-                    self._api.get_instance_interface_type(
-                        vm
-                    )
+                    self._api.get_instance_interface_type(vm)
                 )
 
     def load_target(self, target_name: str) -> Any:
-        try:
-            node = self._api.get_node_by_vmid(int(target_name))
-        except VmDoesNotExistException:
-            node = None
-        return node
+        self._api.get_node_by_vmid(int(target_name))
+        return int(target_name)
 
     def get_vnics(self, vm_id: int) -> Collection[VnicInfo]:
         def get_vnic_info(vnic: dict) -> VnicInfo:
@@ -79,13 +74,17 @@ class ProxmoxConnectivityFlow(AbcCloudProviderConnectivityFlow):
                 True,
             )
 
-        return tuple(map(get_vnic_info, self._api.get_instance_ifaces_info(vm_id)))
+        return tuple(map(get_vnic_info, self._api.get_instance_ifaces_info(
+            vm_id
+        ).values()
+                         )
+                     )
 
     def set_vlan(
             self, action: ProxmoxConnectivityActionModel, target: str = None
     ) -> str:
 
-        vnic_name = action.custom_action_attrs.vnic
+        vnic_name = int(action.custom_action_attrs.vnic)
         net_settings = self._get_network_settings(action)
         interface_type = self._instance_interface_type_map[target]
 
@@ -95,7 +94,7 @@ class ProxmoxConnectivityFlow(AbcCloudProviderConnectivityFlow):
             network_bridge=net_settings.switch_name,
             instance_id=target,
             vlan_tag=net_settings.vlan_id,
-            vnic_id=net_settings.name,
+            vnic_id=vnic_name,
             interface_type=interface_type,
             enable_firewall=net_settings.enable_firewall,
         )
@@ -109,12 +108,10 @@ class ProxmoxConnectivityFlow(AbcCloudProviderConnectivityFlow):
             # deleted if disconnect for the first time failed
             logger.warning(VM_NOT_FOUND_MSG.format(action.custom_action_attrs.vm_uuid))
             return ""
-        data = self._api.get_instance_ifaces_info(target).get(
-            action.connector_attrs.interface, {})
-        if data.get("index"):
-            mac = self._api.detach_interface(target, int(data.get("index")))
-            logger.info(f"Disconnecting {data.get('name', '')} from the {data.get('guest_name', '')}")
-            return mac
+
+        mac = self._api.detach_interface(target, action.connector_attrs.interface)
+
+        return mac
 
     def clear(self, action: ProxmoxConnectivityActionModel, target: Any) -> str:
         """Executes before set VLAN actions or for rolling back failed.

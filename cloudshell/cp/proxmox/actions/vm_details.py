@@ -48,10 +48,16 @@ class VMDetailsActions:
 
     def _prepare_common_vm_instance_data(
             self,
-            instance_id: int
+            instance_id: int,
+            wait_for_results: bool = True
     ) -> list[VmDetailsProperty]:
-
-        vm_info = self._get_instance_info_with_retries(instance_id=instance_id)
+        vm_info = {}
+        if wait_for_results:
+            vm_info = self._get_instance_info_with_retries(instance_id=instance_id)
+        else:
+            with suppress(InstanceIsNotRunningException):
+                vm_info = self._ph.get_instance_info(instance_id=instance_id)
+            # vm_info = self._get_instance_info(instance_id=instance_id)
         data = [
             VmDetailsProperty(key="CPU", value=f"{vm_info['CPU']} vCPU"),
             VmDetailsProperty(key="Memory", value=format_bytes(vm_info["Memory"])),
@@ -77,7 +83,8 @@ class VMDetailsActions:
     def _prepare_vm_network_data(
             self,
             instance_id: int,
-            app_model: APP_MODEL_TYPES
+            app_model: APP_MODEL_TYPES,
+            wait_for_results: bool = True
     ) -> list[VmDetailsNetworkInterface]:
         """Prepare VM Network data."""
         logger.info(f"Preparing VM Details network data for the {instance_id}")
@@ -86,19 +93,23 @@ class VMDetailsActions:
         network_actions = VMNetworkActions(self._resource_conf,
                                            self._cancellation_manager)
 
-        vnics_data = self._get_instance_interfaces_with_retries(instance_id=instance_id)
+        vnics_data: dict = self._get_instance_interfaces_with_retries(
+            instance_id=instance_id)
         primary_ip = None
-        with suppress(VMIPNotFoundException):
-            primary_ip = network_actions.get_vm_ip(
-                self._ph,
-                instance_id,
-                ip_regex=app_model.ip_regex,
-                timeout=3,
-            )
+        if wait_for_results:
+            with suppress(VMIPNotFoundException):
+                primary_ip = network_actions.get_vm_ip(
+                    self._ph,
+                    instance_id,
+                    ip_regex=app_model.ip_regex,
+                    timeout=3,
+                )
 
         for mac, iface in vnics_data.items():
             vlan_id = iface.get("tag", "")
-            is_predefined = vlan_id in self._resource_conf.reserved_networks
+            if not vlan_id:
+                vlan_id = 0
+            is_predefined = str(vlan_id) in self._resource_conf.reserved_networks
             network_data = [
                 VmDetailsProperty(key="IP", value=iface.get("ipv4")),
                 VmDetailsProperty(key="MAC Address", value=mac),
@@ -110,10 +121,9 @@ class VMDetailsActions:
             ]
 
             ip = None
-            try:
+            with suppress(ValueError):
                 ip = str(ipaddress.ip_address(iface["ipv4"]))
-            except ValueError:
-                pass
+
             is_primary = primary_ip == ip if primary_ip else False
 
             interface = VmDetailsNetworkInterface(
@@ -124,11 +134,7 @@ class VMDetailsActions:
                 networkData=network_data,
                 privateIpAddress=ip,
             )
-            # interface = VmDetailsNetworkInterface(
-            #     interfaceId=iface["mac"],
-            #     networkData=network_data,
-            #     privateIpAddress=ip,
-            # )
+
             network_interfaces.append(interface)
 
         return network_interfaces
@@ -153,6 +159,7 @@ class VMDetailsActions:
             self,
             instance_id: int,
             app_model: APP_MODEL_TYPES,
+            wait_for_results: bool = True
     ) -> VmDetailsData:
         try:
             app_name = app_model.app_name  # DeployApp
@@ -162,9 +169,14 @@ class VMDetailsActions:
         try:
             # instance_id = int(app_model.vmdetails.uid)
             instance_details = self._prepare_common_vm_instance_data(
-                instance_id=instance_id)  # noqa: E501
-            network_details = self._prepare_vm_network_data(instance_id=instance_id,
-                                                            app_model=app_model)
+                instance_id=instance_id,
+                wait_for_results=wait_for_results
+            )
+            network_details = self._prepare_vm_network_data(
+                instance_id=instance_id,
+                app_model=app_model,
+                wait_for_results=wait_for_results
+            )
         except Exception as e:
             logger.exception("Failed to created VM Details:")
             details = VmDetailsData(appName=app_name, errorMessage=str(e))

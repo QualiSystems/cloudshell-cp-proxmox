@@ -63,3 +63,5 @@ target/
 .pypirc
 
 .idea/
+
+/vnc_websocket.py

@@ -63,7 +63,10 @@ class BaseAPIClient:
         try:
             raise_for_status and res.raise_for_status()
         except requests.exceptions.HTTPError as caught_err:
-            logger.exception(f"HTTP Error: {caught_err}")
+            if res is not None and res.content:
+                logger.error(f"HTTP Request {url} Error: {res.content}")
+            else:
+                logger.exception(f"HTTP Request {url} Error: {caught_err}")
             http_code = caught_err.response.status_code
             err = http_error_map.get(http_code, BaseProxmoxException)
             raise err from caught_err
@@ -314,6 +317,26 @@ class ProxmoxAutomationAPI(BaseAPIClient):
         )
 
     @Decorators.get_data()
+    def set_disk_data(
+            self,
+            node: str,
+            instance_id: int,
+            disk_data: dict
+    ) -> requests.Response:
+        """"""
+        error_map = {
+            400: ParamsException,
+            401: AuthAPIException,
+        }
+
+        return self._do_post(
+            path=f"nodes/{node}/{self.instance_type.value}/{instance_id}/config",
+            json=disk_data,
+            http_error_map=error_map,
+            cookies={COOKIES: self.ticket}
+        )
+
+    @Decorators.get_data()
     def set_user_data(
             self,
             node: str,
@@ -365,49 +388,62 @@ class ProxmoxAutomationAPI(BaseAPIClient):
     def attach_interface(
             self,
             node: str,
-            network_bridge: str,
             interface_id: int,
             instance_id: int,
-            vlan_tag: int,
-            interface_type: str = "virtio",
-            mac_address: str = "",
-            enable_firewall: bool = True,
+            data: str,
     ) -> requests.Response:
         """"""
         error_map = {
             400: ParamsException,
             401: AuthAPIException,
         }
-        data = f"{interface_type}"
-        if mac_address:
-            data += f":{mac_address}"
-        data += f",bridge={network_bridge},tag={vlan_tag},firewall={int(enable_firewall)}"
-        return self._do_put(
+
+        response = self._do_put(
             path=f"nodes/{node}/{self.instance_type.value}/{instance_id}/config",
             http_error_map=error_map,
-            json={f"net{interface_id}": f"{data}"},
+            json={f"net{interface_id}": data},
             cookies={COOKIES: self.ticket}
         )
+        return response
 
     @Decorators.get_data()
-    def detach_interface(
+    def update_interface(
             self,
             node: str,
             interface_id: int,
             instance_id: int,
+            data: str,
     ) -> requests.Response:
         """"""
         error_map = {
             400: ParamsException,
             401: AuthAPIException,
         }
-        data = "link_down=True"
-        return self._do_put(
+        return self._do_post(
             path=f"nodes/{node}/{self.instance_type.value}/{instance_id}/config",
             http_error_map=error_map,
-            json={f"net{interface_id}": f"{data}"},
+            json={f"net{interface_id}": data},
             cookies={COOKIES: self.ticket}
         )
+
+    # @Decorators.get_data()
+    # def detach_interface(
+    #         self,
+    #         node: str,
+    #         interface_id: int,
+    #         instance_id: int,
+    # ) -> requests.Response:
+    #     """"""
+    #     error_map = {
+    #         400: ParamsException,
+    #         401: AuthAPIException,
+    #     }
+    #     return self._do_put(
+    #         path=f"nodes/{node}/{self.instance_type.value}/{instance_id}/config",
+    #         http_error_map=error_map,
+    #         json={f"net{interface_id}": "link_down=True"},
+    #         cookies={COOKIES: self.ticket}
+    #     )
 
     @Decorators.get_data()
     def get_next_id(self) -> requests.Response:
@@ -432,7 +468,6 @@ class ProxmoxAutomationAPI(BaseAPIClient):
             401: AuthAPIException,
             500: InstanceIsNotRunningException
         }
-        # self.session.headers.update({})
 
         return self._do_get(
             path=f"nodes/{node}/{self.instance_type.value}/{instance_id}"
@@ -469,7 +504,8 @@ class ProxmoxAutomationAPI(BaseAPIClient):
             cookies={COOKIES: self.ticket}
         )
 
-    def stop_instance(self, node: str, instance_id: int) -> None:
+    @Decorators.get_data()
+    def stop_instance(self, node: str, instance_id: int) -> requests.Response:
         """Stop virtual machine.
 
         The qemu process will exit immediately.
@@ -480,14 +516,15 @@ class ProxmoxAutomationAPI(BaseAPIClient):
             400: ParamsException,
             401: AuthAPIException,
         }
-        self._do_post(
+        return self._do_post(
             path=f"nodes/{node}/{self.instance_type.value}/{instance_id}/status/stop",
             http_error_map=error_map,
             json={"node": node, "vmid": instance_id},
             cookies={COOKIES: self.ticket}
         )
 
-    def shutdown_instance(self, node: str, instance_id: int) -> None:
+    @Decorators.get_data()
+    def shutdown_instance(self, node: str, instance_id: int) -> requests.Response:
         """Shutdown virtual machine.
 
         This is similar to pressing the power button on a physical machine.
@@ -498,7 +535,7 @@ class ProxmoxAutomationAPI(BaseAPIClient):
             400: ParamsException,
             401: AuthAPIException,
         }
-        self._do_post(
+        return self._do_post(
             path=f"nodes/{node}/{self.instance_type.value}/{instance_id}/status/shutdown",
             http_error_map=error_map,
             json={"node": node, "vmid": instance_id},
@@ -678,12 +715,12 @@ class ProxmoxAutomationAPI(BaseAPIClient):
             cookies={COOKIES: self.ticket}
         )
 
-    @Decorators.get_data()
-    def get_net_ifaces(self, node: str, instance_id: int) -> requests.Response:
+    def get_net_ifaces(self, node: str, instance_id: int) -> dict:
         """"""
         error_map = {
             400: ParamsException,
             401: AuthAPIException,
+            500: InstanceIsNotRunningException
         }
         # self.session.headers.update({})
 
@@ -693,7 +730,7 @@ class ProxmoxAutomationAPI(BaseAPIClient):
             http_error_map=error_map,
             cookies={COOKIES: self.ticket}
         )
-        return response
+        return response.json()["data"]
 
     @Decorators.get_data()
     def get_vnc_shell(self, node):
@@ -711,98 +748,36 @@ class ProxmoxAutomationAPI(BaseAPIClient):
             cookies={COOKIES: self.ticket}
         )
 
-    @Decorators.get_data()
-    def get_instance_osinfo(self, node: str, instance_id: int) -> requests.Response:
+    # @Decorators.get_data()
+    def get_instance_osinfo(self, node: str, instance_id: int) -> dict:
         """"""
         error_map = {
             400: ParamsException,
             401: AuthAPIException,
             500: InstanceIsNotRunningException
         }
-        # self.session.headers.update({})
 
         return self._do_get(
             path=f"/nodes/{node}/{self.instance_type.value}/"
                  f"{instance_id}/agent/get-osinfo",
             http_error_map=error_map,
             cookies={COOKIES: self.ticket}
-        )
+        ).json()["data"]
 
     @Decorators.get_instance_data()
-    def get_instance_config(self, node: str, instance_id: int) -> requests.Response:
+    def get_instance_config(
+            self,
+            node: str,
+            instance_id: int
+    ) -> requests.Response | dict:
         """"""
         error_map = {
             400: ParamsException,
             401: AuthAPIException,
         }
-        # self.session.headers.update({})
 
         return self._do_get(
             path=f"/nodes/{node}/{self.instance_type.value}/{instance_id}/config",
             http_error_map=error_map,
             cookies={COOKIES: self.ticket}
         )
-
-
-if __name__ == "__main__":
-    # session = requests.Session()
-    # session.verify = ssl.CERT_NONE
-    # session.headers.update({"Content-Type": "application/json"})
-    # urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
-    #
-    # url = "https://192.168.26.120:8006/api2/json/access/ticket"
-    # cred = {"username": "root@pam", "password": "Password1"}
-    #
-    # res = session.post(url, json=cred)
-    # print(res.json())
-
-    api = ProxmoxAutomationAPI(
-        address="192.168.105.21",
-        # address="192.168.26.120",
-        username="root@pam",
-        password="Password1",
-        # instance_type=InstanceType.CONTAINER
-    )
-    api.connect()
-    # resss1 = api.get_resources()
-    resss1 = api.get_instance_config(node="proxmox1", instance_id=101)
-    res = api.attach_interface(node="proxmox1", instance_id=101,
-                               network_bridge="vmbr1", interface_id=3, vlan_tag=65)
-    # api = ProxmoxAutomationAPI(
-    #     address="192.168.105.21",
-    #     # address="192.168.26.120",
-    #     username="root@pam",
-    #     password="Password1",
-    #     instance_type=InstanceType.CONTAINER
-    # )
-    # api.connect()
-    # resss = api.get_instance_config(node="proxmox1", instance_id=106)
-    # res1 = api.get_instance_ifaces(node="proxmox1", instance_id=101)
-    # res = api.get_task_status(node="proxmox1", upid="UPID:proxmox1:0034308A:11F8AFA1:660C23DC:qmsnapshot:100:root@pam:")
-
-    # print(get_node_by_vmid(instance_id=102))
-    # print(api.version())
-    # for i in api.get_resources(r_type="vm"):
-    #     print(i)
-    #
-    # print(api.get_next_id())
-    # for snap in api.get_snapshot_list(node="proxmox1", instance_id=100):
-    #     print(snap)
-    # rrr = api.get_instance_status(node="proxmox1", instance_id=101)
-    # api.create_snapshot(node="proxmox1", instance_id=100, name="working")
-    # api.clone_instance(node="proxmox1", instance_id=101, name="working-12")
-    # api.clone_instance(node="proxmox1", instance_id=101, target_storage="",
-    #                    target_node="", full=True, name="test_clone", snapshot="")
-
-    # for k,v in api.get_node_report(node="proxmox8").items():
-    #     print(f"{k} : {v}")
-    # print(api.get_node_report(node="proxmox1"))
-    # print(api.get_instance_ifaces(node="pve", instance_id=102))
-    # print(api.get_instance_status(node="pve", instance_id=103))
-    # for instance_id in [102, 103, 104]:
-    #     api.delete_vm(node="pve", instance_id=instance_id)
-    # print(api.delete_vm(node="proxmox1", instance_id=120))
-
-    # print(api.ticket)
-    # print(api.token)
-    print(1)

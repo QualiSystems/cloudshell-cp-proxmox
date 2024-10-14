@@ -84,8 +84,18 @@ class ResourceBoolAttrRODeploymentPath(ResourceAttrRODeploymentPath):
 
 
 class ProxmoxCloneModeAttrRO(ResourceBoolAttrRODeploymentPath):
-    TRUE_VALUES = {"Full", }
-    FALSE_VALUES = {"Linked", }
+    TRUE_VALUES = {"full", }
+    FALSE_VALUES = {"linked", }
+
+    def __get__(self, instance, owner):
+        val = super().__get__(instance, owner)
+        if val is self or val is self.default or not isinstance(val, str):
+            return val
+        if val.lower() in self.TRUE_VALUES:
+            return True
+        if val.lower() in self.FALSE_VALUES:
+            return False
+        raise ValueError(f"{self.name} is boolean attr, but value is {val}")
 
 
 class ResourceListAttrRODeploymentPath(ResourceAttrRODeploymentPath):

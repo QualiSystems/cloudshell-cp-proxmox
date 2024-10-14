@@ -2,13 +2,11 @@ from __future__ import annotations
 
 import logging
 import re
-from typing import TYPE_CHECKING, Self
 
 from attrs import define
 
 from cloudshell.shell.flows.connectivity.models.connectivity_model import (
     ConnectionModeEnum,
-    IsolationLevelEnum,
 )
 
 from cloudshell.cp.proxmox.exceptions import BaseProxmoxException
@@ -20,7 +18,6 @@ logger = logging.getLogger(__name__)
 
 
 MAX_DVSWITCH_LENGTH = 60
-# uses for PG names v2
 MAX_DVSWITCH_LENGTH_V2 = 50
 QS_NAME_PREFIX = "QS"
 PORT_GROUP_NAME_PATTERN = re.compile(rf"{QS_NAME_PREFIX}_.+_VLAN")
@@ -159,7 +156,7 @@ class NetworkSettings:
         cls,
         action: ProxmoxConnectivityActionModel,
         resource_config: ProxmoxResourceConfig,
-    ) -> Self:
+    ):
         con_params = action.connection_params
         vlan_service = con_params.vlan_service_attrs
 
