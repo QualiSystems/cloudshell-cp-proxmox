@@ -565,15 +565,3 @@ class ProxmoxHandler:
             upid=upid,
             msg=f"Failed to delete snapshot {name} during {{attempt*timeout}} sec"
         )
-
-
-if __name__ == "__main__":
-    address = "192.168.105.21"
-    # address="192.168.26.120",
-    username = "root@pam"
-    password = "Password1"
-    client = ProxmoxHandler.connect(host=address, user=username, password=password,
-                                    instance_type=InstanceType.VM)
-    # res = client.get_instance_ifaces_info(instance_id=129)
-    res = client.get_instance_storage(instance_id=101)
-    print(res)
