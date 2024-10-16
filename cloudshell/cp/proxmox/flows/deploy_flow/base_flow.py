@@ -175,7 +175,6 @@ class AbstractProxmoxDeployFlow(AbstractDeployFlow):
                 deploy_app=deploy_app,
                 instance_name=instance_name,
             )
-            self.proxmox_api.get_node_by_vmid(deployed_vm_id)
             if deploy_app.auto_power_on:
                 self.proxmox_api.start_instance(
                     deployed_vm_id,

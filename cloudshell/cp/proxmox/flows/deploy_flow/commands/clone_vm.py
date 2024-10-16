@@ -1,7 +1,6 @@
 from __future__ import annotations
 
-from contextlib import suppress
-
+import logging
 import time
 
 from cloudshell.cp.core.cancellation_manager import CancellationContextManager
@@ -10,6 +9,8 @@ from cloudshell.cp.core.rollback import RollbackCommand, RollbackCommandsManager
 from cloudshell.cp.proxmox.exceptions import UnsuccessfulOperationException
 from cloudshell.cp.proxmox.handlers.proxmox_handler import ProxmoxHandler
 from cloudshell.shell.core.driver_utils import GlobalLock
+
+logger = logging.getLogger(__name__)
 
 
 class CloneVMCommand(RollbackCommand, GlobalLock):
@@ -42,22 +43,26 @@ class CloneVMCommand(RollbackCommand, GlobalLock):
 
         retry = 0
         while retry <= 5:
-            with suppress(UnsuccessfulOperationException):
+            # with suppress(UnsuccessfulOperationException):
+            try:
                 new_vm_id, up_id = self._execute_deploy(src_node)
                 self._api.wait_for_deploy_to_complete(
                     instance_node=src_node,
                     upid=up_id,
                     instance_name=self._instance_name
                 )
+                self._api.get_node_by_vmid(new_vm_id)
+                return new_vm_id
+            except UnsuccessfulOperationException as e:
+                logger.warning(f"Deploy request for {self._instance_name} failed with:"
+                               f" {e}\n Retrying...", exc_info=True)
                 retry += 1
-
-            return new_vm_id
 
         raise UnsuccessfulOperationException(f"Failed to deploy {self._instance_name}")
 
     @GlobalLock.lock
-    def _execute_deploy(self, node) -> int:
-        return self._api.clone_instance(
+    def _execute_deploy(self, node) -> tuple[str, str]:
+        result = self._api.clone_instance(
             instance_id=self._src_instance_id,
             instance_name=self._instance_name,
             instance_node=node,
@@ -66,6 +71,8 @@ class CloneVMCommand(RollbackCommand, GlobalLock):
             target_storage=self._target_storage,
             target_node=self._target_node,
         )
+        time.sleep(5)
+        return result
 
     def rollback(self):
         if self._cloned_vm_id:

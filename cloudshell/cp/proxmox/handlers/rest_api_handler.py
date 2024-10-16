@@ -478,13 +478,14 @@ class ProxmoxAutomationAPI(BaseAPIClient):
             cookies={COOKIES: self.ticket},
         )
 
-    def start_instance(self, node: str, instance_id: int) -> None:
+    @Decorators.get_data()
+    def start_instance(self, node: str, instance_id: int) -> requests.Response:
         """Start Virtual Machine."""
         error_map = {
             400: ParamsException,
             401: AuthAPIException,
         }
-        self._do_post(
+        return self._do_post(
             path=f"nodes/{node}/{self.instance_type.value}/{instance_id}/status/start",
             http_error_map=error_map,
             json={"node": node, "vmid": instance_id},

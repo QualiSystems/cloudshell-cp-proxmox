@@ -108,7 +108,13 @@ class ProxmoxHandler:
             skip_check
             or not self.get_instance_status(instance_id, node) == PowerState.RUNNING
         ):
-            self._obj.start_instance(node=node, instance_id=instance_id)
+            upid = self._obj.start_instance(node=node, instance_id=instance_id)
+
+            self._task_waiter(
+                node=node,
+                upid=upid,
+                msg=f"Failed to start instance {instance_id} during {{attempt*timeout}} sec",
+            )
 
     def stop_instance(
         self,
