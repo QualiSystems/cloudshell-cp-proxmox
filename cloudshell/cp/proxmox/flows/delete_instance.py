@@ -1,17 +1,15 @@
 from __future__ import annotations
 
 import logging
+from typing import TYPE_CHECKING
 
 from attrs import define
-from typing import TYPE_CHECKING
 
 from cloudshell.cp.proxmox.handlers.proxmox_handler import ProxmoxHandler
 
 if TYPE_CHECKING:
     from cloudshell.cp.proxmox.models.deployed_app import BaseProxmoxDeployedApp
-    from cloudshell.cp.proxmox.resource_config import (
-        ProxmoxResourceConfig,
-    )
+    from cloudshell.cp.proxmox.resource_config import ProxmoxResourceConfig
 
 logger = logging.getLogger(__name__)
 

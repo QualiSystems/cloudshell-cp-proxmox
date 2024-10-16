@@ -5,27 +5,25 @@ import ssl
 import time
 from abc import abstractmethod
 from collections.abc import Callable
-
-from attrs import define, field
-from attrs.setters import frozen
 from urllib.parse import quote
 
 import requests
 import urllib3
-
-
-from cloudshell.cp.proxmox.exceptions import (
-    BaseProxmoxException,
-    AuthAPIException,
-    ParamsException, UnsuccessfulOperationException, InstanceIsNotRunningException,
-)
+from attrs import define, field
+from attrs.setters import frozen
 
 from cloudshell.cp.proxmox.constants import COOKIES, TOKEN
+from cloudshell.cp.proxmox.exceptions import (
+    AuthAPIException,
+    BaseProxmoxException,
+    InstanceIsNotRunningException,
+    ParamsException,
+    UnsuccessfulOperationException,
+)
 from cloudshell.cp.proxmox.utils.instance_config_helper import convert_instance_config
 from cloudshell.cp.proxmox.utils.instance_type import InstanceType
 
 logger = logging.getLogger(__name__)
-
 
 
 @define
@@ -130,10 +128,7 @@ class ProxmoxAutomationAPI(BaseAPIClient):
     class Decorators:
         @classmethod
         def get_data(
-            cls,
-            retries: int = 6,
-            timeout: int = 5,
-            raise_on_timeout: bool = True
+            cls, retries: int = 6, timeout: int = 5, raise_on_timeout: bool = True
         ):
             def wrapper(decorated):
                 def inner(*args, **kwargs):
@@ -156,18 +151,15 @@ class ProxmoxAutomationAPI(BaseAPIClient):
                             )
 
                 return inner
+
             return wrapper
 
         @classmethod
         def get_instance_data(
-            cls,
-            retries: int = 6,
-            timeout: int = 5,
-            raise_on_timeout: bool = True
+            cls, retries: int = 6, timeout: int = 5, raise_on_timeout: bool = True
         ):
             def wrapper(decorated):
                 def inner(*args, **kwargs):
-
                     exception = None
                     attempt = 0
                     while attempt < retries:
@@ -186,7 +178,9 @@ class ProxmoxAutomationAPI(BaseAPIClient):
                             raise BaseProxmoxException(
                                 f"Cannot get data for {retries*timeout} sec."
                             )
+
                 return inner
+
             return wrapper
 
         @classmethod
@@ -203,10 +197,7 @@ class ProxmoxAutomationAPI(BaseAPIClient):
 
         @classmethod
         def is_instance_locked(
-            cls,
-            retries: int = 60,
-            timeout: int = 5,
-            raise_on_timeout: bool = True
+            cls, retries: int = 60, timeout: int = 5, raise_on_timeout: bool = True
         ):
             def wrapper(decorated):
                 def inner(*args, **kwargs):
@@ -224,8 +215,12 @@ class ProxmoxAutomationAPI(BaseAPIClient):
                             attempt += 1
 
                     if raise_on_timeout:
-                        raise Exception(f"VM is still locked after {retries*timeout} sec")
+                        raise Exception(
+                            f"VM is still locked after {retries*timeout} sec"
+                        )
+
                 return inner
+
             return wrapper
 
     def _base_url(self):
@@ -252,7 +247,7 @@ class ProxmoxAutomationAPI(BaseAPIClient):
         return self._do_post(
             path="access/ticket",
             http_error_map=error_map,
-            json={"username": self.username, "password": self.password}
+            json={"username": self.username, "password": self.password},
         )
 
     @Decorators.get_data()
@@ -265,7 +260,7 @@ class ProxmoxAutomationAPI(BaseAPIClient):
         return self._do_get(
             path=f"nodes/{node}/tasks/{quote(upid)}/status",
             http_error_map=error_map,
-            cookies={COOKIES: self.ticket}
+            cookies={COOKIES: self.ticket},
         )
 
     @Decorators.get_data()
@@ -276,9 +271,7 @@ class ProxmoxAutomationAPI(BaseAPIClient):
         }
         # self.session.headers.update({})
         return self._do_get(
-            path="version",
-            http_error_map=error_map,
-            cookies={COOKIES: self.ticket}
+            path="version", http_error_map=error_map, cookies={COOKIES: self.ticket}
         )
 
     @Decorators.get_data()
@@ -295,11 +288,11 @@ class ProxmoxAutomationAPI(BaseAPIClient):
                 r_type = "lxc"
         # self.session.headers.update({})
 
-        return (self._do_get(
+        return self._do_get(
             path=f"cluster/resources?type={r_type}" if r_type else "cluster/resources",
             http_error_map=error_map,
-            cookies={COOKIES: self.ticket}
-        ))
+            cookies={COOKIES: self.ticket},
+        )
 
     @Decorators.get_data()
     def get_network_bridges(self, r_type: str = None) -> requests.Response:
@@ -313,15 +306,12 @@ class ProxmoxAutomationAPI(BaseAPIClient):
         return self._do_get(
             path=f"cluster/resources?type={r_type}" if r_type else "any_bridge",
             http_error_map=error_map,
-            cookies={COOKIES: self.ticket}
+            cookies={COOKIES: self.ticket},
         )
 
     @Decorators.get_data()
     def set_disk_data(
-            self,
-            node: str,
-            instance_id: int,
-            disk_data: dict
+        self, node: str, instance_id: int, disk_data: dict
     ) -> requests.Response:
         """"""
         error_map = {
@@ -333,15 +323,12 @@ class ProxmoxAutomationAPI(BaseAPIClient):
             path=f"nodes/{node}/{self.instance_type.value}/{instance_id}/config",
             json=disk_data,
             http_error_map=error_map,
-            cookies={COOKIES: self.ticket}
+            cookies={COOKIES: self.ticket},
         )
 
     @Decorators.get_data()
     def set_user_data(
-            self,
-            node: str,
-            instance_id: int,
-            user_data: dict
+        self, node: str, instance_id: int, user_data: dict
     ) -> requests.Response:
         """"""
         error_map = {
@@ -353,20 +340,20 @@ class ProxmoxAutomationAPI(BaseAPIClient):
             path=f"nodes/{node}/{self.instance_type.value}/{instance_id}/config",
             json=user_data,
             http_error_map=error_map,
-            cookies={COOKIES: self.ticket}
+            cookies={COOKIES: self.ticket},
         )
 
     @Decorators.get_data()
     def assign_vlan(
-            self,
-            node: str,
-            network_bridge: str,
-            interface_id: str,
-            instance_id: int,
-            vlan_tag: str,
-            interface_type: str = "virtio",
-            mac_address: str = "",
-            enable_firewall: bool = True,
+        self,
+        node: str,
+        network_bridge: str,
+        interface_id: str,
+        instance_id: int,
+        vlan_tag: str,
+        interface_type: str = "virtio",
+        mac_address: str = "",
+        enable_firewall: bool = True,
     ) -> requests.Response:
         """"""
         error_map = {
@@ -381,16 +368,16 @@ class ProxmoxAutomationAPI(BaseAPIClient):
             path=f"nodes/{node}/{self.instance_type.value}/{instance_id}/config",
             json={f"net{interface_id}": data},
             http_error_map=error_map,
-            cookies={COOKIES: self.ticket}
+            cookies={COOKIES: self.ticket},
         )
 
     @Decorators.get_data()
     def attach_interface(
-            self,
-            node: str,
-            interface_id: int,
-            instance_id: int,
-            data: str,
+        self,
+        node: str,
+        interface_id: int,
+        instance_id: int,
+        data: str,
     ) -> requests.Response:
         """"""
         error_map = {
@@ -402,17 +389,17 @@ class ProxmoxAutomationAPI(BaseAPIClient):
             path=f"nodes/{node}/{self.instance_type.value}/{instance_id}/config",
             http_error_map=error_map,
             json={f"net{interface_id}": data},
-            cookies={COOKIES: self.ticket}
+            cookies={COOKIES: self.ticket},
         )
         return response
 
     @Decorators.get_data()
     def update_interface(
-            self,
-            node: str,
-            interface_id: int,
-            instance_id: int,
-            data: str,
+        self,
+        node: str,
+        interface_id: int,
+        instance_id: int,
+        data: str,
     ) -> requests.Response:
         """"""
         error_map = {
@@ -423,7 +410,7 @@ class ProxmoxAutomationAPI(BaseAPIClient):
             path=f"nodes/{node}/{self.instance_type.value}/{instance_id}/config",
             http_error_map=error_map,
             json={f"net{interface_id}": data},
-            cookies={COOKIES: self.ticket}
+            cookies={COOKIES: self.ticket},
         )
 
     # @Decorators.get_data()
@@ -457,7 +444,7 @@ class ProxmoxAutomationAPI(BaseAPIClient):
         return self._do_get(
             path=f"cluster/nextid?_dc={int(time.time())}",
             http_error_map=error_map,
-            cookies={COOKIES: self.ticket}
+            cookies={COOKIES: self.ticket},
         )
 
     @Decorators.is_instance_locked()
@@ -466,14 +453,14 @@ class ProxmoxAutomationAPI(BaseAPIClient):
         error_map = {
             400: ParamsException,
             401: AuthAPIException,
-            500: InstanceIsNotRunningException
+            500: InstanceIsNotRunningException,
         }
 
         return self._do_get(
             path=f"nodes/{node}/{self.instance_type.value}/{instance_id}"
-                 f"/status/current",
+            f"/status/current",
             http_error_map=error_map,
-            cookies={COOKIES: self.ticket}
+            cookies={COOKIES: self.ticket},
         )
 
     @Decorators.get_data(retries=60)
@@ -488,7 +475,7 @@ class ProxmoxAutomationAPI(BaseAPIClient):
         return self._do_get(
             path=f"nodes/{node}/{self.instance_type.value}/{instance_id}/agent/network-get-interfaces",
             http_error_map=error_map,
-            cookies={COOKIES: self.ticket}
+            cookies={COOKIES: self.ticket},
         )
 
     def start_instance(self, node: str, instance_id: int) -> None:
@@ -501,7 +488,7 @@ class ProxmoxAutomationAPI(BaseAPIClient):
             path=f"nodes/{node}/{self.instance_type.value}/{instance_id}/status/start",
             http_error_map=error_map,
             json={"node": node, "vmid": instance_id},
-            cookies={COOKIES: self.ticket}
+            cookies={COOKIES: self.ticket},
         )
 
     @Decorators.get_data()
@@ -520,7 +507,7 @@ class ProxmoxAutomationAPI(BaseAPIClient):
             path=f"nodes/{node}/{self.instance_type.value}/{instance_id}/status/stop",
             http_error_map=error_map,
             json={"node": node, "vmid": instance_id},
-            cookies={COOKIES: self.ticket}
+            cookies={COOKIES: self.ticket},
         )
 
     @Decorators.get_data()
@@ -539,21 +526,21 @@ class ProxmoxAutomationAPI(BaseAPIClient):
             path=f"nodes/{node}/{self.instance_type.value}/{instance_id}/status/shutdown",
             http_error_map=error_map,
             json={"node": node, "vmid": instance_id},
-            cookies={COOKIES: self.ticket}
+            cookies={COOKIES: self.ticket},
         )
 
     # @Decorators.is_success
     @Decorators.get_data()
     def clone_instance(
-            self,
-            node: str,
-            instance_id: int,
-            new_instance_id: int,
-            name: str = None,
-            snapshot: str = None,
-            full: bool = None,
-            target_storage: str = None,
-            target_node: str = None,
+        self,
+        node: str,
+        instance_id: int,
+        new_instance_id: int,
+        name: str = None,
+        snapshot: str = None,
+        full: bool = None,
+        target_storage: str = None,
+        target_node: str = None,
     ) -> requests.Response:
         """Create VM."""
         error_map = {
@@ -562,11 +549,7 @@ class ProxmoxAutomationAPI(BaseAPIClient):
         }
 
         # new_instance_id = self.get_next_id()
-        data = {
-            "newid": new_instance_id,
-            "node": node,
-            "vmid": instance_id
-        }
+        data = {"newid": new_instance_id, "node": node, "vmid": instance_id}
 
         if name:
             data["name"] = name.replace("_", "-")
@@ -592,19 +575,19 @@ class ProxmoxAutomationAPI(BaseAPIClient):
             path=f"nodes/{node}/{self.instance_type.value.lower()}/{instance_id}/clone",
             json=data,
             http_error_map=error_map,
-            cookies={COOKIES: self.ticket}
+            cookies={COOKIES: self.ticket},
         )
 
         return upid
 
     # @Decorators.is_success
     def delete_instance(
-            self,
-            node: str,
-            instance_id: int,
-            destroy_unref_disk: bool = True,
-            purge: bool = True,
-            skip_lock: bool = False
+        self,
+        node: str,
+        instance_id: int,
+        destroy_unref_disk: bool = True,
+        purge: bool = True,
+        skip_lock: bool = False,
     ) -> requests.Response:
         """"""
         error_map = {
@@ -615,12 +598,12 @@ class ProxmoxAutomationAPI(BaseAPIClient):
 
         return self._do_delete(
             path=f"nodes/{node}/{self.instance_type.value}/{instance_id}?node="
-                 f"{node}&vmid={int(instance_id)}&"
-                 f"purge={int(purge)}&destroy-unreferenced-disks={int(destroy_unref_disk)}",
+            f"{node}&vmid={int(instance_id)}&"
+            f"purge={int(purge)}&destroy-unreferenced-disks={int(destroy_unref_disk)}",
             http_error_map=error_map,
             # json={"node": node, "vmid": instance_id, "purge": f"{int(purge)}",
             #       "destroy-unreferenced-disks": f"{int(destroy_unref_disk)}"},
-            cookies={COOKIES: self.ticket}
+            cookies={COOKIES: self.ticket},
         )
 
     @Decorators.get_data()
@@ -635,16 +618,12 @@ class ProxmoxAutomationAPI(BaseAPIClient):
         return self._do_get(
             path=f"nodes/{node}/{self.instance_type.value}/{instance_id}/snapshot",
             http_error_map=error_map,
-            cookies={COOKIES: self.ticket}
+            cookies={COOKIES: self.ticket},
         )
 
     @Decorators.get_data()
     def create_snapshot(
-            self,
-            node: str,
-            instance_id: int,
-            snapshot_name: str,
-            instance_state: int = 0
+        self, node: str, instance_id: int, snapshot_name: str, instance_state: int = 0
     ) -> requests.Response:
         """"""
         error_map = {
@@ -657,15 +636,15 @@ class ProxmoxAutomationAPI(BaseAPIClient):
             path=f"nodes/{node}/{self.instance_type.value}/{instance_id}/snapshot",
             json={"snapname": snapshot_name, "vmstate": instance_state},
             http_error_map=error_map,
-            cookies={COOKIES: self.ticket}
+            cookies={COOKIES: self.ticket},
         )
 
     @Decorators.get_data()
     def restore_from_snapshot(
-            self,
-            node: str,
-            instance_id: int,
-            snapshot_name: str,
+        self,
+        node: str,
+        instance_id: int,
+        snapshot_name: str,
     ) -> requests.Response:
         """"""
         error_map = {
@@ -677,15 +656,15 @@ class ProxmoxAutomationAPI(BaseAPIClient):
         return self._do_post(
             path=f"nodes/{node}/{self.instance_type.value}/{instance_id}/snapshot/{snapshot_name}/rollback",
             http_error_map=error_map,
-            cookies={COOKIES: self.ticket}
+            cookies={COOKIES: self.ticket},
         )
 
     @Decorators.get_data()
     def delete_snapshot(
-            self,
-            node: str,
-            instance_id: int,
-            snapshot_name: str,
+        self,
+        node: str,
+        instance_id: int,
+        snapshot_name: str,
     ) -> requests.Response:
         """"""
         error_map = {
@@ -697,7 +676,7 @@ class ProxmoxAutomationAPI(BaseAPIClient):
         return self._do_delete(
             path=f"nodes/{node}/{self.instance_type.value}/{instance_id}/snapshot/{snapshot_name}",
             http_error_map=error_map,
-            cookies={COOKIES: self.ticket}
+            cookies={COOKIES: self.ticket},
         )
 
     @Decorators.get_data()
@@ -712,23 +691,44 @@ class ProxmoxAutomationAPI(BaseAPIClient):
         return self._do_get(
             path=f"/nodes/{node}/status",
             http_error_map=error_map,
-            cookies={COOKIES: self.ticket}
+            cookies={COOKIES: self.ticket},
         )
 
     def get_net_ifaces(self, node: str, instance_id: int) -> dict:
         """"""
+        if self.instance_type == InstanceType.VM:
+            return self.get_vm_net_ifaces(node, instance_id)
+        else:
+            return self.get_lxc_net_ifaces(node, instance_id)
+
+    def get_lxc_net_ifaces(self, node: str, instance_id: int) -> dict:
+        """"""
         error_map = {
             400: ParamsException,
             401: AuthAPIException,
-            500: InstanceIsNotRunningException
+            500: InstanceIsNotRunningException,
+        }
+        response = self._do_get(
+            path=f"/nodes/{node}/lxc/{instance_id}/interfaces",
+            http_error_map=error_map,
+            cookies={COOKIES: self.ticket},
+        )
+        return response.json()["data"]
+
+    def get_vm_net_ifaces(self, node: str, instance_id: int) -> dict:
+        """"""
+        error_map = {
+            400: ParamsException,
+            401: AuthAPIException,
+            500: InstanceIsNotRunningException,
         }
         # self.session.headers.update({})
 
         response = self._do_get(
             path=f"/nodes/{node}/{self.instance_type.value}/{instance_id}"
-                 f"/agent/network-get-interfaces",
+            f"/agent/network-get-interfaces",
             http_error_map=error_map,
-            cookies={COOKIES: self.ticket}
+            cookies={COOKIES: self.ticket},
         )
         return response.json()["data"]
 
@@ -741,11 +741,11 @@ class ProxmoxAutomationAPI(BaseAPIClient):
         return self._do_post(
             path=f"nodes/{node}/termproxy",
             json={
-                "node": "proxmox1",
+                "node": node,
                 # "websocket": True
             },
             http_error_map=error_map,
-            cookies={COOKIES: self.ticket}
+            cookies={COOKIES: self.ticket},
         )
 
     # @Decorators.get_data()
@@ -754,21 +754,19 @@ class ProxmoxAutomationAPI(BaseAPIClient):
         error_map = {
             400: ParamsException,
             401: AuthAPIException,
-            500: InstanceIsNotRunningException
+            500: InstanceIsNotRunningException,
         }
 
         return self._do_get(
             path=f"/nodes/{node}/{self.instance_type.value}/"
-                 f"{instance_id}/agent/get-osinfo",
+            f"{instance_id}/agent/get-osinfo",
             http_error_map=error_map,
-            cookies={COOKIES: self.ticket}
+            cookies={COOKIES: self.ticket},
         ).json()["data"]
 
     @Decorators.get_instance_data()
     def get_instance_config(
-            self,
-            node: str,
-            instance_id: int
+        self, node: str, instance_id: int
     ) -> requests.Response | dict:
         """"""
         error_map = {
@@ -779,5 +777,5 @@ class ProxmoxAutomationAPI(BaseAPIClient):
         return self._do_get(
             path=f"/nodes/{node}/{self.instance_type.value}/{instance_id}/config",
             http_error_map=error_map,
-            cookies={COOKIES: self.ticket}
+            cookies={COOKIES: self.ticket},
         )

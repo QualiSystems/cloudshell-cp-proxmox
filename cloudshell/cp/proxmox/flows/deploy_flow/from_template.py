@@ -1,20 +1,16 @@
 from cloudshell.cp.core.request_actions.models import VmDetailsData
-
 from cloudshell.cp.proxmox.actions.vm_details import VMDetailsActions
 from cloudshell.cp.proxmox.flows.deploy_flow import AbstractProxmoxDeployFlow
 from cloudshell.cp.proxmox.models.deploy_app import InstanceFromTemplateDeployApp
 
 
 class ProxmoxDeployInstanceFromTemplateFlow(AbstractProxmoxDeployFlow):
-
     def _get_instance_snapshot(self, deploy_app: InstanceFromTemplateDeployApp) -> None:
         """Get snapshot name."""
         return None
 
     def _apply_cloud_init(
-        self,
-        deployed_vm_id: int,
-        deploy_app: InstanceFromTemplateDeployApp
+        self, deployed_vm_id: int, deploy_app: InstanceFromTemplateDeployApp
     ) -> None:
         """Apply Cloud Init."""
         username = deploy_app.user
@@ -22,9 +18,7 @@ class ProxmoxDeployInstanceFromTemplateFlow(AbstractProxmoxDeployFlow):
 
         if username and password:
             self.proxmox_api.set_user_data(
-                instance_id=deployed_vm_id,
-                username=username,
-                password=password
+                instance_id=deployed_vm_id, username=username, password=password
             )
 
     def _get_source_instance(self, deploy_app: InstanceFromTemplateDeployApp) -> int:

@@ -4,11 +4,10 @@ import re
 from typing import TYPE_CHECKING
 
 import websocket
+
 from cloudshell.cli.session.session_exceptions import SessionReadTimeout
 from cloudshell.cli.session.telnet_session import TelnetSession
-
 from cloudshell.cp.proxmox.handlers.proxmox_handler import ProxmoxHandler
-
 
 if TYPE_CHECKING:
     from logging import Logger
@@ -16,7 +15,8 @@ if TYPE_CHECKING:
     from cloudshell.cli.types import T_ON_SESSION_START, T_TIMEOUT
 
 
-ansi_escape = re.compile(r'''
+ansi_escape = re.compile(
+    r"""
     \x1B  # ESC
     (?:   # 7-bit C1 Fe (except CSI)
         [@-Z\\-_]
@@ -26,21 +26,23 @@ ansi_escape = re.compile(r'''
         [ -/]*  # Intermediate bytes
         [@-~]   # Final byte
     )
-''', re.VERBOSE)
+""",
+    re.VERBOSE,
+)
 
 
 class WebSocketSession(TelnetSession):
     def __init__(
-            self,
-            host: str,
-            username: str,
-            password: str,
-            node: str,
-            port: int | None = None,
-            on_session_start: T_ON_SESSION_START | None = None,
-            proxmox_handler: ProxmoxHandler = None,
-            *args,
-            **kwargs,
+        self,
+        host: str,
+        username: str,
+        password: str,
+        node: str,
+        port: int | None = None,
+        on_session_start: T_ON_SESSION_START | None = None,
+        proxmox_handler: ProxmoxHandler = None,
+        *args,
+        **kwargs,
     ):
         super().__init__(
             host,
@@ -55,10 +57,7 @@ class WebSocketSession(TelnetSession):
         self._node = node
 
     def _initialize_session(
-            self,
-            prompt: str,
-            logger: Logger,
-            proxmox_handler: ProxmoxHandler = None
+        self, prompt: str, logger: Logger, proxmox_handler: ProxmoxHandler = None
     ) -> None:
         if not proxmox_handler and not self.proxmox_handler:
             raise ValueError("Proxmox handler is not provided")
@@ -112,7 +111,7 @@ class WebSocketSession(TelnetSession):
                 break
         else:
             str_data = byte_data.decode()
-        return ansi_escape.sub('', str_data)
+        return ansi_escape.sub("", str_data)
 
     def disconnect(self) -> None:
         if self._handler:

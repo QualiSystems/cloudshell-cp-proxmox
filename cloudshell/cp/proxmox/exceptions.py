@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from collections.abc import Iterable
+
 from attrs import define
 
 from cloudshell.cp.proxmox.constants import SNAPSHOT_TYPE
@@ -25,6 +26,7 @@ class InvalidCommandParam(BaseProxmoxException):
 
 class AuthAPIException(BaseProxmoxException):
     """Wrong ticket Exception."""
+
 
 class InstanceIsNotRunningException(BaseProxmoxException):
     """Instance is not running."""

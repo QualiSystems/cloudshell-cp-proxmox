@@ -1,5 +1,4 @@
 from cloudshell.cp.core.request_actions.models import VmDetailsData
-
 from cloudshell.cp.proxmox.actions.vm_details import VMDetailsActions
 from cloudshell.cp.proxmox.flows.deploy_flow import AbstractProxmoxDeployFlow
 from cloudshell.cp.proxmox.models.deploy_app import InstanceFromVMDeployApp
@@ -11,9 +10,7 @@ class ProxmoxDeployInstanceFromVMFlow(AbstractProxmoxDeployFlow):
         return deploy_app.sm_snapshot
 
     def _apply_cloud_init(
-        self,
-        deployed_vm_id: int,
-        deploy_app: InstanceFromVMDeployApp
+        self, deployed_vm_id: int, deploy_app: InstanceFromVMDeployApp
     ) -> None:
         """Apply Cloud Init."""
         username = deploy_app.user
@@ -21,9 +18,7 @@ class ProxmoxDeployInstanceFromVMFlow(AbstractProxmoxDeployFlow):
 
         if username and password:
             self.proxmox_api.set_user_data(
-                instance_id=deployed_vm_id,
-                username=username,
-                password=password
+                instance_id=deployed_vm_id, username=username, password=password
             )
 
     def _get_source_instance(self, deploy_app: InstanceFromVMDeployApp) -> int:
@@ -35,9 +30,7 @@ class ProxmoxDeployInstanceFromVMFlow(AbstractProxmoxDeployFlow):
         return True
 
     def _prepare_vm_details_data(
-        self,
-        deployed_vm_id: int,
-        deploy_app: InstanceFromVMDeployApp
+        self, deployed_vm_id: int, deploy_app: InstanceFromVMDeployApp
     ) -> VmDetailsData:
         """Prepare CloudShell VM Details model."""
         vm_details_actions = VMDetailsActions(
@@ -46,4 +39,3 @@ class ProxmoxDeployInstanceFromVMFlow(AbstractProxmoxDeployFlow):
             self._cancellation_manager,
         )
         return vm_details_actions.create(deployed_vm_id, deploy_app)
-

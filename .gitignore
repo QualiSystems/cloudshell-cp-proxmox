@@ -65,3 +65,4 @@ target/
 .idea/
 
 /vnc_websocket.py
+/_deploy.py

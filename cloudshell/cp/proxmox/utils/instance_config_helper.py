@@ -1,5 +1,8 @@
-from cloudshell.cp.proxmox.constants import MAC_REGEXP, INSTANCE_CFG_EXC_KEYS, \
-    INSTANCE_CFG_TAGS
+from cloudshell.cp.proxmox.constants import (
+    INSTANCE_CFG_EXC_KEYS,
+    INSTANCE_CFG_TAGS,
+    MAC_REGEXP,
+)
 
 
 def convert_instance_config(response):

@@ -2,9 +2,9 @@ from __future__ import annotations
 
 import logging
 import time
+from typing import TYPE_CHECKING
 
 from attrs import define
-from typing import TYPE_CHECKING
 
 from cloudshell.cp.proxmox.utils.power_state import PowerState
 
@@ -12,8 +12,8 @@ if TYPE_CHECKING:
     from cloudshell.cp.proxmox.handlers.proxmox_handler import ProxmoxHandler
     from cloudshell.cp.proxmox.models.deployed_app import BaseProxmoxDeployedApp
     from cloudshell.cp.proxmox.resource_config import (
-        ShutdownMethod,
         ProxmoxResourceConfig,
+        ShutdownMethod,
     )
 
 logger = logging.getLogger(__name__)
@@ -31,10 +31,12 @@ class ProxmoxPowerFlow:
         self._si.start_instance(instance_id=int(self._deployed_app.vmdetails.uid))
         self._wait_for_power_state(PowerState.RUNNING)
 
-    def _wait_for_power_state(self, state: PowerState, timeout: int = 7, max_retries:
-    int = 7):
-        power_state = self._si.get_instance_status(int(
-            self._deployed_app.vmdetails.uid))
+    def _wait_for_power_state(
+        self, state: PowerState, timeout: int = 7, max_retries: int = 7
+    ):
+        power_state = self._si.get_instance_status(
+            int(self._deployed_app.vmdetails.uid)
+        )
         while state != power_state and max_retries > 0:
             if max_retries == 0:
                 raise TimeoutError(f"Timeout while waiting for {state}")
@@ -48,7 +50,6 @@ class ProxmoxPowerFlow:
         logger.info(f"Powering Off {self._deployed_app.vmdetails.uid}")
         soft = self._resource_config.shutdown_method is ShutdownMethod.SOFT
         self._si.stop_instance(
-            instance_id=int(self._deployed_app.vmdetails.uid),
-            soft=soft
+            instance_id=int(self._deployed_app.vmdetails.uid), soft=soft
         )
         self._wait_for_power_state(PowerState.STOPPED)

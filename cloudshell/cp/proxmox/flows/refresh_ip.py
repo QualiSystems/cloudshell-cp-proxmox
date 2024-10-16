@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 from cloudshell.cp.core.cancellation_manager import CancellationContextManager
-
 from cloudshell.cp.proxmox.actions.vm_network import VMNetworkActions
 from cloudshell.cp.proxmox.exceptions import VmIsNotPowered
 from cloudshell.cp.proxmox.handlers.proxmox_handler import ProxmoxHandler
@@ -11,10 +10,10 @@ from cloudshell.cp.proxmox.utils.power_state import PowerState
 
 
 def refresh_ip(
-        si: ProxmoxHandler,
-        deployed_app: BaseProxmoxDeployedApp,
-        resource_conf: ProxmoxResourceConfig,
-        cancellation_manager: CancellationContextManager,
+    si: ProxmoxHandler,
+    deployed_app: BaseProxmoxDeployedApp,
+    resource_conf: ProxmoxResourceConfig,
+    cancellation_manager: CancellationContextManager,
 ) -> str:
     ip = ""
     timeout = deployed_app.refresh_ip_timeout

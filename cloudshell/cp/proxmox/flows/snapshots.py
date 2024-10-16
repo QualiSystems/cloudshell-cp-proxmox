@@ -2,26 +2,23 @@ from __future__ import annotations
 
 import json
 import logging
-
-from attrs import define
 from datetime import datetime
 from typing import TYPE_CHECKING
 
-from cloudshell.cp.proxmox.handlers.proxmox_handler import ProxmoxHandler
+from attrs import define
+
 from cloudshell.cp.proxmox.constants import SNAPSHOT_TYPE
 from cloudshell.cp.proxmox.exceptions import (
+    InvalidCommandParam,
     InvalidOrchestrationType,
-    InvalidCommandParam
 )
+from cloudshell.cp.proxmox.handlers.proxmox_handler import ProxmoxHandler
 from cloudshell.shell.core.orchestration_save_restore import OrchestrationSaveRestore
-
 
 if TYPE_CHECKING:
     from cloudshell.api.cloudshell_api import CloudShellAPISession
     from cloudshell.cp.proxmox.models.deployed_app import BaseProxmoxDeployedApp
-    from cloudshell.cp.proxmox.resource_config import (
-        ProxmoxResourceConfig,
-    )
+    from cloudshell.cp.proxmox.resource_config import ProxmoxResourceConfig
 
 logger = logging.getLogger(__name__)
 
@@ -54,7 +51,7 @@ class ProxmoxSnapshotFlow:
         snapshot_path = self._si.create_snapshot(
             instance_id=int(self._deployed_app.vmdetails.uid),
             name=snapshot_name,
-            dump_memory=dump_memory
+            dump_memory=dump_memory,
         )
         return snapshot_path
 

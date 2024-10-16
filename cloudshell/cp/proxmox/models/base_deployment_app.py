@@ -84,8 +84,12 @@ class ResourceBoolAttrRODeploymentPath(ResourceAttrRODeploymentPath):
 
 
 class ProxmoxCloneModeAttrRO(ResourceBoolAttrRODeploymentPath):
-    TRUE_VALUES = {"full", }
-    FALSE_VALUES = {"linked", }
+    TRUE_VALUES = {
+        "full",
+    }
+    FALSE_VALUES = {
+        "linked",
+    }
 
     def __get__(self, instance, owner):
         val = super().__get__(instance, owner)

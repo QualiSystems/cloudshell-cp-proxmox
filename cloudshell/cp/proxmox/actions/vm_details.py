@@ -11,45 +11,38 @@ from cloudshell.cp.core.request_actions.models import (
     VmDetailsNetworkInterface,
     VmDetailsProperty,
 )
-
 from cloudshell.cp.proxmox.actions.vm_network import VMNetworkActions
-from cloudshell.cp.proxmox.exceptions import InstanceIsNotRunningException, \
-    VMIPNotFoundException
-from cloudshell.cp.proxmox.models.deploy_app import (
-    BaseProxmoxDeployApp,
+from cloudshell.cp.proxmox.exceptions import (
+    InstanceIsNotRunningException,
+    VMIPNotFoundException,
 )
-from cloudshell.cp.proxmox.models.deployed_app import (
-    BaseProxmoxDeployedApp,
-)
+from cloudshell.cp.proxmox.models.deploy_app import BaseProxmoxDeployApp
+from cloudshell.cp.proxmox.models.deployed_app import BaseProxmoxDeployedApp
 from cloudshell.cp.proxmox.utils.units_converter import format_bytes
 
 if TYPE_CHECKING:
-    from cloudshell.cp.proxmox.handlers.proxmox_handler import ProxmoxHandler
     from cloudshell.cp.core.cancellation_manager import CancellationContextManager
+    from cloudshell.cp.proxmox.handlers.proxmox_handler import ProxmoxHandler
     from cloudshell.cp.proxmox.resource_config import ProxmoxResourceConfig
 
 logger = logging.getLogger(__name__)
 
-APP_MODEL_TYPES = Union[
-    BaseProxmoxDeployApp, BaseProxmoxDeployedApp
-]
+APP_MODEL_TYPES = Union[BaseProxmoxDeployApp, BaseProxmoxDeployedApp]
 
 
 class VMDetailsActions:
     def __init__(
-            self,
-            ph: ProxmoxHandler,
-            resource_conf: ProxmoxResourceConfig,
-            cancellation_manager: CancellationContextManager,
+        self,
+        ph: ProxmoxHandler,
+        resource_conf: ProxmoxResourceConfig,
+        cancellation_manager: CancellationContextManager,
     ):
         self._ph = ph
         self._resource_conf = resource_conf
         self._cancellation_manager = cancellation_manager
 
     def _prepare_common_vm_instance_data(
-            self,
-            instance_id: int,
-            wait_for_results: bool = True
+        self, instance_id: int, wait_for_results: bool = True
     ) -> list[VmDetailsProperty]:
         vm_info = {}
         if wait_for_results:
@@ -62,39 +55,42 @@ class VMDetailsActions:
             VmDetailsProperty(key="CPU", value=f"{vm_info['CPU']} vCPU"),
             VmDetailsProperty(key="Memory", value=format_bytes(vm_info["Memory"])),
             VmDetailsProperty(key="Guest OS", value=vm_info["Guest OS"]),
-            VmDetailsProperty(key="Disk Size", value=format_bytes(vm_info["Disk"]))
-
+            VmDetailsProperty(key="Disk Size", value=format_bytes(vm_info["Disk"])),
         ]
         return data
 
-    def _get_instance_info_with_retries(self, instance_id: int, max_retries: int = 7,
-                                        timeout: int = 7) \
-            -> dict[str: str] | None:
+    def _get_instance_info_with_retries(
+        self, instance_id: int, max_retries: int = 7, timeout: int = 7
+    ) -> dict[str:str] | None:
         retry = -1
         while retry < max_retries:
             try:
                 return self._ph.get_instance_info(instance_id=instance_id)
             except InstanceIsNotRunningException:
-                logger.info(f"Instance {instance_id} is not running yet. "
-                            f"Retry in {timeout} seconds")
+                logger.info(
+                    f"Instance {instance_id} is not running yet. "
+                    f"Retry in {timeout} seconds"
+                )
                 time.sleep(timeout)
                 retry += 1
 
     def _prepare_vm_network_data(
-            self,
-            instance_id: int,
-            app_model: APP_MODEL_TYPES,
-            wait_for_results: bool = True
+        self,
+        instance_id: int,
+        app_model: APP_MODEL_TYPES,
+        wait_for_results: bool = True,
     ) -> list[VmDetailsNetworkInterface]:
         """Prepare VM Network data."""
         logger.info(f"Preparing VM Details network data for the {instance_id}")
 
         network_interfaces = []
-        network_actions = VMNetworkActions(self._resource_conf,
-                                           self._cancellation_manager)
+        network_actions = VMNetworkActions(
+            self._resource_conf, self._cancellation_manager
+        )
 
         vnics_data: dict = self._get_instance_interfaces_with_retries(
-            instance_id=instance_id)
+            instance_id=instance_id
+        )
         primary_ip = None
         if wait_for_results:
             with suppress(VMIPNotFoundException):
@@ -114,10 +110,13 @@ class VMDetailsActions:
                 VmDetailsProperty(key="IP", value=iface.get("ipv4")),
                 VmDetailsProperty(key="MAC Address", value=mac),
                 VmDetailsProperty(key="vNIC Name", value=iface.get("name")),
-                VmDetailsProperty(key="Guest Interface Name", value=iface[
-                    "guest_name"]),
-                VmDetailsProperty(key="Firewall Enabled", value=str(int(
-                    iface.get("firewall", "0")) == 1)),
+                VmDetailsProperty(
+                    key="Guest Interface Name", value=iface["guest_name"]
+                ),
+                VmDetailsProperty(
+                    key="Firewall Enabled",
+                    value=str(int(iface.get("firewall", "0")) == 1),
+                ),
             ]
 
             ip = None
@@ -140,26 +139,25 @@ class VMDetailsActions:
         return network_interfaces
 
     def _get_instance_interfaces_with_retries(
-            self,
-            instance_id: int,
-            max_retries: int = 7,
-            timeout: int = 5
-    ) -> dict[str: dict] | None:
+        self, instance_id: int, max_retries: int = 7, timeout: int = 5
+    ) -> dict[str:dict] | None:
         retry = -1
         while retry < max_retries:
             try:
                 return self._ph.get_instance_ifaces_info(instance_id=instance_id)
             except InstanceIsNotRunningException:
-                logger.info(f"Instance {instance_id} is not running yet. "
-                            f"Retry in {timeout} seconds")
+                logger.info(
+                    f"Instance {instance_id} is not running yet. "
+                    f"Retry in {timeout} seconds"
+                )
                 time.sleep(timeout)
                 retry += 1
 
     def create(
-            self,
-            instance_id: int,
-            app_model: APP_MODEL_TYPES,
-            wait_for_results: bool = True
+        self,
+        instance_id: int,
+        app_model: APP_MODEL_TYPES,
+        wait_for_results: bool = True,
     ) -> VmDetailsData:
         try:
             app_name = app_model.app_name  # DeployApp
@@ -169,13 +167,12 @@ class VMDetailsActions:
         try:
             # instance_id = int(app_model.vmdetails.uid)
             instance_details = self._prepare_common_vm_instance_data(
-                instance_id=instance_id,
-                wait_for_results=wait_for_results
+                instance_id=instance_id, wait_for_results=wait_for_results
             )
             network_details = self._prepare_vm_network_data(
                 instance_id=instance_id,
                 app_model=app_model,
-                wait_for_results=wait_for_results
+                wait_for_results=wait_for_results,
             )
         except Exception as e:
             logger.exception("Failed to created VM Details:")

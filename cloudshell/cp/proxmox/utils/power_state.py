@@ -12,6 +12,5 @@ class PowerState(Enum):
     @staticmethod
     def from_str(label):
         return next(
-            (state for state in PowerState if state.value == label),
-            PowerState.UNKNOWN
+            (state for state in PowerState if state.value == label), PowerState.UNKNOWN
         )

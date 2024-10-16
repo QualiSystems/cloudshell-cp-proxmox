@@ -12,7 +12,6 @@ from cloudshell.cp.proxmox.handlers.proxmox_handler import ProxmoxHandler
 
 if TYPE_CHECKING:
     from cloudshell.cp.core.cancellation_manager import CancellationContextManager
-
     from cloudshell.cp.proxmox.resource_config import ProxmoxResourceConfig
 
 

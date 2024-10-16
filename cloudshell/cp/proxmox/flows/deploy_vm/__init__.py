@@ -1,22 +1,28 @@
 from __future__ import annotations
 
+from cloudshell.cp.proxmox.models import deploy_app
+
 from .base_flow import AbstractProxmoxDeployVMFlow
-from .from_template import ProxmoxDeployVMFromTemplateFlow
-from .from_vm import ProxmoxDeployVMFromVMFlow
-from .from_qemu import ProxmoxDeployVMFromQEMUImageFlow
 from .from_image import (
     ProxmoxDeployContainerFromLocalImageFlow,
-    ProxmoxDeployContainerFromRemoteImageFlow
+    ProxmoxDeployContainerFromRemoteImageFlow,
 )
-
-from cloudshell.cp.proxmox.models import deploy_app
+from .from_qemu import ProxmoxDeployVMFromQEMUImageFlow
+from .from_template import ProxmoxDeployVMFromTemplateFlow
+from .from_vm import ProxmoxDeployVMFromVMFlow
 
 DEPLOY_APP_TO_FLOW = (
     (deploy_app.VMFromVMDeployApp, ProxmoxDeployVMFromVMFlow),
     (deploy_app.VMFromTemplateDeployApp, ProxmoxDeployVMFromTemplateFlow),
     (deploy_app.VMFromQEMUImageDeployApp, ProxmoxDeployVMFromQEMUImageFlow),
-    (deploy_app.ContainerFromLocalImageDeployApp, ProxmoxDeployContainerFromLocalImageFlow),    # noqa: E501
-    (deploy_app.ContainerFromRemoteImageDeployApp, ProxmoxDeployContainerFromRemoteImageFlow),  # noqa: E501
+    (
+        deploy_app.ContainerFromLocalImageDeployApp,
+        ProxmoxDeployContainerFromLocalImageFlow,
+    ),  # noqa: E501
+    (
+        deploy_app.ContainerFromRemoteImageDeployApp,
+        ProxmoxDeployContainerFromRemoteImageFlow,
+    ),  # noqa: E501
 )
 
 

@@ -1,14 +1,12 @@
 from __future__ import annotations
 
 import logging
-from attrs import define
 from collections.abc import Iterable
 from typing import TYPE_CHECKING
 
+from attrs import define
 
-from cloudshell.cp.proxmox.exceptions import (
-    InvalidAttributeException,
-)
+from cloudshell.cp.proxmox.exceptions import InvalidAttributeException
 from cloudshell.cp.proxmox.handlers.proxmox_handler import ProxmoxHandler
 
 if TYPE_CHECKING:

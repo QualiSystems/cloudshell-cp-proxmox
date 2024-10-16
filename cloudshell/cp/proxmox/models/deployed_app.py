@@ -5,19 +5,18 @@ from cloudshell.cp.core.request_actions import (
     GetVMDetailsRequestActions,
 )
 from cloudshell.cp.core.request_actions.models import DeployedApp
-
 from cloudshell.cp.proxmox import constants
 from cloudshell.cp.proxmox.models.base_deployment_app import (
-    ResourceAttrRODeploymentPath,
-    ResourceBoolAttrRODeploymentPath,
-    ResourceIntAttrRODeploymentPath,
-    ProxmoxDeploymentAppAttributeNames,
     ProxmoxCloneModeAttrRO,
-    ProxmoxInstanceFromVMDeploymentAppAttributeNames,
-    ProxmoxInstanceFromTemplateDeploymentAppAttributeNames,
+    ProxmoxDeploymentAppAttributeNames,
     ProxmoxInstanceFromContainerDeploymentAppAttributeNames,
     ProxmoxInstanceFromContainerImageDeploymentAppAttributeNames,
     ProxmoxInstanceFromQEMUImageDeploymentAppAttributeNames,
+    ProxmoxInstanceFromTemplateDeploymentAppAttributeNames,
+    ProxmoxInstanceFromVMDeploymentAppAttributeNames,
+    ResourceAttrRODeploymentPath,
+    ResourceBoolAttrRODeploymentPath,
+    ResourceIntAttrRODeploymentPath,
 )
 
 
@@ -43,6 +42,7 @@ class InstanceFromVMDeployedApp(BaseProxmoxDeployedApp):
     DEPLOYMENT_PATH = constants.VM_FROM_VM_DEPLOYMENT_PATH
     vm_id = ResourceAttrRODeploymentPath(ATTR_NAMES.vm_id)
     sm_snapshot = ResourceAttrRODeploymentPath(ATTR_NAMES.snapshot)
+
 
 class InstanceFromQEMUImageDeployedApp(BaseProxmoxDeployedApp):
     ATTR_NAMES = ProxmoxInstanceFromQEMUImageDeploymentAppAttributeNames

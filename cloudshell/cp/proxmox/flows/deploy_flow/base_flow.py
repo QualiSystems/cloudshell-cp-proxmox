@@ -6,16 +6,14 @@ from cloudshell.cp.core.cancellation_manager import CancellationContextManager
 from cloudshell.cp.core.flows import AbstractDeployFlow
 from cloudshell.cp.core.request_actions import DeployVMRequestActions
 from cloudshell.cp.core.request_actions.models import (
-    VmDetailsData,
+    Attribute,
     DeployAppResult,
-    Attribute
+    VmDetailsData,
 )
 from cloudshell.cp.core.rollback import RollbackCommandsManager
 from cloudshell.cp.core.utils.name_generator import NameGenerator
-
 from cloudshell.cp.proxmox.actions.vm_details import VMDetailsActions
 from cloudshell.cp.proxmox.flows.deploy_flow.commands import CloneVMCommand
-
 from cloudshell.cp.proxmox.handlers.proxmox_handler import ProxmoxHandler
 from cloudshell.cp.proxmox.models.deploy_app import BaseProxmoxDeployApp
 from cloudshell.cp.proxmox.resource_config import ProxmoxResourceConfig
@@ -25,12 +23,12 @@ logger = logging.getLogger(__name__)
 
 class AbstractProxmoxDeployFlow(AbstractDeployFlow):
     def __init__(
-            self,
-            api: ProxmoxHandler,
-            resource_config: ProxmoxResourceConfig,
-            cs_api: CloudShellAPISession,
-            reservation_info: ReservationInfo,
-            cancellation_manager: CancellationContextManager,
+        self,
+        api: ProxmoxHandler,
+        resource_config: ProxmoxResourceConfig,
+        cs_api: CloudShellAPISession,
+        reservation_info: ReservationInfo,
+        cancellation_manager: CancellationContextManager,
     ):
         super().__init__(logger=logger)
         self._resource_config = resource_config
@@ -43,17 +41,13 @@ class AbstractProxmoxDeployFlow(AbstractDeployFlow):
 
     @abstractmethod
     def _apply_cloud_init(
-        self,
-        deployed_vm_id: int,
-        deploy_app: BaseProxmoxDeployApp
+        self, deployed_vm_id: int, deploy_app: BaseProxmoxDeployApp
     ) -> None:
         """"""
         pass
 
     def _prepare_vm_details_data(
-        self,
-        deployed_vm_id: int,
-        deploy_app: BaseProxmoxDeployApp
+        self, deployed_vm_id: int, deploy_app: BaseProxmoxDeployApp
     ) -> VmDetailsData:
         """Prepare CloudShell VM Details model."""
         vm_details_actions = VMDetailsActions(
@@ -61,8 +55,9 @@ class AbstractProxmoxDeployFlow(AbstractDeployFlow):
             self._resource_config,
             self._cancellation_manager,
         )
-        return vm_details_actions.create(deployed_vm_id, deploy_app,
-                                         wait_for_results=False)
+        return vm_details_actions.create(
+            deployed_vm_id, deploy_app, wait_for_results=False
+        )
 
     @abstractmethod
     def _get_source_instance(self, deploy_app: BaseProxmoxDeployApp):
@@ -92,7 +87,7 @@ class AbstractProxmoxDeployFlow(AbstractDeployFlow):
         return deploy_app.target_node
 
     def _prepare_app_attrs(
-            self, deploy_app: BaseProxmoxDeployApp, vm_id: int
+        self, deploy_app: BaseProxmoxDeployApp, vm_id: int
     ) -> list[Attribute]:
         attrs = []
 
@@ -105,10 +100,10 @@ class AbstractProxmoxDeployFlow(AbstractDeployFlow):
         return attrs
 
     def _prepare_deploy_app_result(
-            self,
-            deployed_vm_id: int,
-            deploy_app: BaseProxmoxDeployApp,
-            instance_name: str,
+        self,
+        deployed_vm_id: int,
+        deploy_app: BaseProxmoxDeployApp,
+        instance_name: str,
     ) -> DeployAppResult:
         vm_details_data = self._prepare_vm_details_data(
             deployed_vm_id=deployed_vm_id,
@@ -181,6 +176,12 @@ class AbstractProxmoxDeployFlow(AbstractDeployFlow):
                 instance_name=instance_name,
             )
             self.proxmox_api.get_node_by_vmid(deployed_vm_id)
+            if deploy_app.auto_power_on:
+                self.proxmox_api.start_instance(
+                    deployed_vm_id,
+                    node=self._get_target_node(deploy_app),
+                    skip_check=True,
+                )
             logger.info(f"VM {instance_name} created")
             # self._add_tags(deployed_vm)
             self._apply_cloud_init(deployed_vm_id, deploy_app)

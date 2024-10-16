@@ -6,5 +6,6 @@ requests>=2.28,<2.32
 websocket-client~=1.8.0
 cloudshell-cp-core~=2.5
 cloudshell-logging~=2.1
+pydantic~=2.4
 cloudshell-shell-connectivity-flow~=4.2
 cloudshell-shell-standards~=2.0

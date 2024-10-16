@@ -2,19 +2,18 @@ from __future__ import annotations
 
 from cloudshell.cp.core.request_actions import DeployVMRequestActions
 from cloudshell.cp.core.request_actions.models import DeployApp
-
 from cloudshell.cp.proxmox import constants
 from cloudshell.cp.proxmox.models.base_deployment_app import (
+    ProxmoxCloneModeAttrRO,
+    ProxmoxDeploymentAppAttributeNames,
+    ProxmoxInstanceFromContainerDeploymentAppAttributeNames,
+    ProxmoxInstanceFromContainerImageDeploymentAppAttributeNames,
+    ProxmoxInstanceFromQEMUImageDeploymentAppAttributeNames,
+    ProxmoxInstanceFromTemplateDeploymentAppAttributeNames,
+    ProxmoxInstanceFromVMDeploymentAppAttributeNames,
     ResourceAttrRODeploymentPath,
     ResourceBoolAttrRODeploymentPath,
     ResourceIntAttrRODeploymentPath,
-    ProxmoxDeploymentAppAttributeNames,
-    ProxmoxCloneModeAttrRO,
-    ProxmoxInstanceFromVMDeploymentAppAttributeNames,
-    ProxmoxInstanceFromTemplateDeploymentAppAttributeNames,
-    ProxmoxInstanceFromQEMUImageDeploymentAppAttributeNames,
-    ProxmoxInstanceFromContainerImageDeploymentAppAttributeNames,
-    ProxmoxInstanceFromContainerDeploymentAppAttributeNames,
 )
 
 

@@ -5,14 +5,14 @@ import re
 
 from attrs import define
 
+from cloudshell.cp.proxmox.exceptions import BaseProxmoxException
+from cloudshell.cp.proxmox.models.connectivity_action_model import (
+    ProxmoxConnectivityActionModel,
+)
+from cloudshell.cp.proxmox.resource_config import ProxmoxResourceConfig
 from cloudshell.shell.flows.connectivity.models.connectivity_model import (
     ConnectionModeEnum,
 )
-
-from cloudshell.cp.proxmox.exceptions import BaseProxmoxException
-from cloudshell.cp.proxmox.models.connectivity_action_model import \
-    ProxmoxConnectivityActionModel
-from cloudshell.cp.proxmox.resource_config import ProxmoxResourceConfig
 
 logger = logging.getLogger(__name__)
 
@@ -100,9 +100,7 @@ def is_network_generated_name(net_name: str):
 #     return vnic
 
 
-def create_new_vnic(
-    vm: int, network: str, vnic_index: int
-) -> str:
+def create_new_vnic(vm: int, network: str, vnic_index: int) -> str:
     if len(vm.vnics) >= 10:
         raise BaseProxmoxException("Limit of vNICs per VM is 10")
 

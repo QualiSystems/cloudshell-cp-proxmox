@@ -1,26 +1,23 @@
 from __future__ import annotations
 
 import logging
-
 from typing import TYPE_CHECKING, Any
 
 from attrs import define
 
+from cloudshell.cp.proxmox.exceptions import VmDoesNotExistException
+from cloudshell.cp.proxmox.handlers.proxmox_handler import ProxmoxHandler
+from cloudshell.cp.proxmox.models.connectivity_action_model import (
+    ProxmoxConnectivityActionModel,
+)
+from cloudshell.cp.proxmox.resource_config import ProxmoxResourceConfig
+from cloudshell.cp.proxmox.utils.connectivity_helpers import NetworkSettings
+from cloudshell.cp.proxmox.utils.threading import LockHandler
 from cloudshell.shell.flows.connectivity.cloud_providers_flow import (
     AbcCloudProviderConnectivityFlow,
     VnicInfo,
 )
-from cloudshell.shell.flows.connectivity.models.connectivity_model import (
-    is_set_action,
-)
-
-from cloudshell.cp.proxmox.exceptions import VmDoesNotExistException
-from cloudshell.cp.proxmox.handlers.proxmox_handler import ProxmoxHandler
-from cloudshell.cp.proxmox.models.connectivity_action_model import \
-    ProxmoxConnectivityActionModel
-from cloudshell.cp.proxmox.resource_config import ProxmoxResourceConfig
-from cloudshell.cp.proxmox.utils.connectivity_helpers import NetworkSettings
-from cloudshell.cp.proxmox.utils.threading import LockHandler
+from cloudshell.shell.flows.connectivity.models.connectivity_model import is_set_action
 
 if TYPE_CHECKING:
     from collections.abc import Collection
@@ -45,22 +42,21 @@ class ProxmoxConnectivityFlow(AbcCloudProviderConnectivityFlow):
         self._instance_interface_type_map = {}
 
     def validate_actions(
-            self, actions: Collection[ProxmoxConnectivityActionModel]
+        self, actions: Collection[ProxmoxConnectivityActionModel]
     ) -> None:
         _ = [self._get_network_settings(action) for action in actions]
 
     def pre_connectivity(
-            self,
-            actions: Collection[ProxmoxConnectivityActionModel],
-            executor: ThreadPoolExecutor,
+        self,
+        actions: Collection[ProxmoxConnectivityActionModel],
+        executor: ThreadPoolExecutor,
     ) -> None:
-
         for action in filter(is_set_action, actions):
             vm = self.get_target(action)
             if vm not in self._instance_interface_type_map:
-                self._instance_interface_type_map[vm] = (
-                    self._api.get_instance_interface_type(vm)
-                )
+                self._instance_interface_type_map[
+                    vm
+                ] = self._api.get_instance_interface_type(vm)
 
     def load_target(self, target_name: str) -> Any:
         self._api.get_node_by_vmid(int(target_name))
@@ -74,16 +70,13 @@ class ProxmoxConnectivityFlow(AbcCloudProviderConnectivityFlow):
                 True,
             )
 
-        return tuple(map(get_vnic_info, self._api.get_instance_ifaces_info(
-            vm_id
-        ).values()
-                         )
-                     )
+        return tuple(
+            map(get_vnic_info, self._api.get_instance_ifaces_info(vm_id).values())
+        )
 
     def set_vlan(
-            self, action: ProxmoxConnectivityActionModel, target: str = None
+        self, action: ProxmoxConnectivityActionModel, target: str = None
     ) -> str:
-
         vnic_name = int(action.custom_action_attrs.vnic)
         net_settings = self._get_network_settings(action)
         interface_type = self._instance_interface_type_map[target]
@@ -100,7 +93,7 @@ class ProxmoxConnectivityFlow(AbcCloudProviderConnectivityFlow):
         )
 
     def remove_vlan(
-            self, action: ProxmoxConnectivityActionModel, target: int | None
+        self, action: ProxmoxConnectivityActionModel, target: int | None
     ) -> str:
         if target is None:
             # skip disconnecting vNIC
@@ -129,6 +122,6 @@ class ProxmoxConnectivityFlow(AbcCloudProviderConnectivityFlow):
     #     pass
 
     def _get_network_settings(
-            self, action: ProxmoxConnectivityActionModel
+        self, action: ProxmoxConnectivityActionModel
     ) -> NetworkSettings:
         return NetworkSettings.convert(action, self._resource_conf)

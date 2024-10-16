@@ -7,6 +7,7 @@ from attr import Attribute
 from attrs import define
 
 from cloudshell.api.cloudshell_api import CloudShellAPISession, ResourceInfo
+from cloudshell.cp.proxmox.constants import STATIC_SHELL_NAME
 from cloudshell.shell.standards.core.namespace_type import NameSpaceType
 from cloudshell.shell.standards.core.resource_conf import BaseConfig, attr
 from cloudshell.shell.standards.core.resource_conf.attrs_getter import (
@@ -15,8 +16,6 @@ from cloudshell.shell.standards.core.resource_conf.attrs_getter import (
 )
 from cloudshell.shell.standards.core.resource_conf.base_conf import password_decryptor
 from cloudshell.shell.standards.core.resource_conf.resource_attr import AttrMeta
-
-from cloudshell.cp.proxmox.constants import STATIC_SHELL_NAME
 
 
 class ShutdownMethod(Enum):
@@ -28,11 +27,9 @@ class ProxmoxAttributeNames:
     user = "User"
     password = "Password"
     shared_storage = "Shared Storage"
-    # behavior_during_save = "Behavior During Save"
     shutdown_method = "Shutdown Method"
     default_bridge = "Default Bridge"
     reserved_networks = "Reserved Networks"
-    # enable_tags = "Enable Tags"
 
 
 @define(slots=False, str=False)
@@ -44,9 +41,7 @@ class ProxmoxResourceConfig(BaseConfig):
     shared_storage: str = attr(ATTR_NAMES.shared_storage)
     default_bridge: str = attr(ATTR_NAMES.default_bridge)
     reserved_networks: str = attr(ATTR_NAMES.reserved_networks)
-    # behavior_during_save: str = attr(ATTR_NAMES.behavior_during_save)
     shutdown_method: ShutdownMethod = attr(ATTR_NAMES.shutdown_method)
-    # enable_tags: bool = attr(ATTR_NAMES.enable_tags)
 
     @classmethod
     def from_cs_resource_details(

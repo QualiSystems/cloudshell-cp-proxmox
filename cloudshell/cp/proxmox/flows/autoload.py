@@ -1,13 +1,12 @@
 from __future__ import annotations
 
 import logging
-
-from attrs import define
 from typing import TYPE_CHECKING
 
-from cloudshell.shell.core.driver_context import AutoLoadDetails
+from attrs import define
 
 from cloudshell.cp.proxmox.actions.validation import ValidationActions
+from cloudshell.shell.core.driver_context import AutoLoadDetails
 
 if TYPE_CHECKING:
     from cloudshell.cp.proxmox.handlers.proxmox_handler import ProxmoxHandler
