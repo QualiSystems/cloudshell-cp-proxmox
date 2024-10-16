@@ -1,9 +1,13 @@
 from __future__ import annotations
 
+from contextlib import suppress
+
 import time
 
 from cloudshell.cp.core.cancellation_manager import CancellationContextManager
 from cloudshell.cp.core.rollback import RollbackCommand, RollbackCommandsManager
+
+from cloudshell.cp.proxmox.exceptions import UnsuccessfulOperationException
 from cloudshell.cp.proxmox.handlers.proxmox_handler import ProxmoxHandler
 from cloudshell.shell.core.driver_utils import GlobalLock
 
@@ -35,11 +39,21 @@ class CloneVMCommand(RollbackCommand, GlobalLock):
 
     def _execute(self) -> int:
         src_node = self._api.get_node_by_vmid(self._src_instance_id)
-        new_vm_id, up_id = self._execute_deploy(src_node)
-        self._api.wait_for_deploy_to_complete(
-            instance_node=src_node, upid=up_id, instance_name=self._instance_name
-        )
-        return new_vm_id
+
+        retry = 0
+        while retry <= 5:
+            with suppress(UnsuccessfulOperationException):
+                new_vm_id, up_id = self._execute_deploy(src_node)
+                self._api.wait_for_deploy_to_complete(
+                    instance_node=src_node,
+                    upid=up_id,
+                    instance_name=self._instance_name
+                )
+                retry += 1
+
+            return new_vm_id
+
+        raise UnsuccessfulOperationException(f"Failed to deploy {self._instance_name}")
 
     @GlobalLock.lock
     def _execute_deploy(self, node) -> int:
@@ -52,7 +66,6 @@ class CloneVMCommand(RollbackCommand, GlobalLock):
             target_storage=self._target_storage,
             target_node=self._target_node,
         )
-    time.sleep(2)
 
     def rollback(self):
         if self._cloned_vm_id:
