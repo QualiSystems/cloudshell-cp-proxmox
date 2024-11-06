@@ -413,25 +413,6 @@ class ProxmoxAutomationAPI(BaseAPIClient):
             cookies={COOKIES: self.ticket},
         )
 
-    # @Decorators.get_data()
-    # def detach_interface(
-    #         self,
-    #         node: str,
-    #         interface_id: int,
-    #         instance_id: int,
-    # ) -> requests.Response:
-    #     """"""
-    #     error_map = {
-    #         400: ParamsException,
-    #         401: AuthAPIException,
-    #     }
-    #     return self._do_put(
-    #         path=f"nodes/{node}/{self.instance_type.value}/{instance_id}/config",
-    #         http_error_map=error_map,
-    #         json={f"net{interface_id}": "link_down=True"},
-    #         cookies={COOKIES: self.ticket}
-    #     )
-
     @Decorators.get_data()
     def get_next_id(self) -> requests.Response:
         """"""
@@ -439,7 +420,6 @@ class ProxmoxAutomationAPI(BaseAPIClient):
             400: ParamsException,
             401: AuthAPIException,
         }
-        # self.session.headers.update({})
 
         return self._do_get(
             path=f"cluster/nextid?_dc={int(time.time())}",
@@ -470,7 +450,6 @@ class ProxmoxAutomationAPI(BaseAPIClient):
             400: ParamsException,
             401: AuthAPIException,
         }
-        # self.session.headers.update({})
 
         return self._do_get(
             path=f"nodes/{node}/{self.instance_type.value}/{instance_id}/agent/network-get-interfaces",
@@ -549,7 +528,6 @@ class ProxmoxAutomationAPI(BaseAPIClient):
             401: AuthAPIException,
         }
 
-        # new_instance_id = self.get_next_id()
         data = {"newid": new_instance_id, "node": node, "vmid": instance_id}
 
         if name:
@@ -602,8 +580,6 @@ class ProxmoxAutomationAPI(BaseAPIClient):
             f"{node}&vmid={int(instance_id)}&"
             f"purge={int(purge)}&destroy-unreferenced-disks={int(destroy_unref_disk)}",
             http_error_map=error_map,
-            # json={"node": node, "vmid": instance_id, "purge": f"{int(purge)}",
-            #       "destroy-unreferenced-disks": f"{int(destroy_unref_disk)}"},
             cookies={COOKIES: self.ticket},
         )
 
@@ -614,7 +590,6 @@ class ProxmoxAutomationAPI(BaseAPIClient):
             400: ParamsException,
             401: AuthAPIException,
         }
-        # self.session.headers.update({})
 
         return self._do_get(
             path=f"nodes/{node}/{self.instance_type.value}/{instance_id}/snapshot",
@@ -631,7 +606,6 @@ class ProxmoxAutomationAPI(BaseAPIClient):
             400: ParamsException,
             401: AuthAPIException,
         }
-        # self.session.headers.update({})
 
         return self._do_post(
             path=f"nodes/{node}/{self.instance_type.value}/{instance_id}/snapshot",
@@ -652,7 +626,6 @@ class ProxmoxAutomationAPI(BaseAPIClient):
             400: ParamsException,
             401: AuthAPIException,
         }
-        # self.session.headers.update({})
 
         return self._do_post(
             path=f"nodes/{node}/{self.instance_type.value}/{instance_id}/snapshot/{snapshot_name}/rollback",
@@ -672,7 +645,6 @@ class ProxmoxAutomationAPI(BaseAPIClient):
             400: ParamsException,
             401: AuthAPIException,
         }
-        # self.session.headers.update({})
 
         return self._do_delete(
             path=f"nodes/{node}/{self.instance_type.value}/{instance_id}/snapshot/{snapshot_name}",
@@ -687,7 +659,6 @@ class ProxmoxAutomationAPI(BaseAPIClient):
             400: ParamsException,
             401: AuthAPIException,
         }
-        # self.session.headers.update({})
 
         return self._do_get(
             path=f"/nodes/{node}/status",
@@ -723,7 +694,6 @@ class ProxmoxAutomationAPI(BaseAPIClient):
             401: AuthAPIException,
             500: InstanceIsNotRunningException,
         }
-        # self.session.headers.update({})
 
         response = self._do_get(
             path=f"/nodes/{node}/{self.instance_type.value}/{instance_id}"
@@ -743,7 +713,6 @@ class ProxmoxAutomationAPI(BaseAPIClient):
             path=f"nodes/{node}/termproxy",
             json={
                 "node": node,
-                # "websocket": True
             },
             http_error_map=error_map,
             cookies={COOKIES: self.ticket},
