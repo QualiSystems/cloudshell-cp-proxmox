@@ -44,35 +44,27 @@ class VMDetailsActions:
     def _prepare_common_vm_instance_data(
         self, instance_id: int, wait_for_results: bool = True
     ) -> list[VmDetailsProperty]:
-        vm_info = {}
-        if wait_for_results:
-            vm_info = self._get_instance_info_with_retries(instance_id=instance_id)
-        else:
-            with suppress(InstanceIsNotRunningException):
-                vm_info = self._ph.get_instance_info(instance_id=instance_id)
-            # vm_info = self._get_instance_info(instance_id=instance_id)
-        data = [
-            VmDetailsProperty(key="CPU", value=f"{vm_info['CPU']} vCPU"),
-            VmDetailsProperty(key="Memory", value=format_bytes(vm_info["Memory"])),
-            VmDetailsProperty(key="Guest OS", value=vm_info["Guest OS"]),
-            VmDetailsProperty(key="Disk Size", value=format_bytes(vm_info["Disk"])),
-        ]
-        return data
+        vm_info = self._ph.get_instance(instance_id)
 
-    def _get_instance_info_with_retries(
-        self, instance_id: int, max_retries: int = 7, timeout: int = 7
-    ) -> dict[str:str] | None:
-        retry = -1
-        while retry < max_retries:
-            try:
-                return self._ph.get_instance_info(instance_id=instance_id)
-            except InstanceIsNotRunningException:
-                logger.info(
-                    f"Instance {instance_id} is not running yet. "
-                    f"Retry in {timeout} seconds"
+        data = [
+            VmDetailsProperty(key="CPU", value=f"{vm_info.cpu} vCPU"),
+            VmDetailsProperty(key="Memory", value=vm_info.memory),
+            VmDetailsProperty(key="Guest OS", value=vm_info.os),
+            VmDetailsProperty(key="OS Disk",
+                              value=vm_info.os_disk_name.rsplit("/", 1)[-1]),
+            VmDetailsProperty(key="OS Disk Size",
+                              value=vm_info.os_disk_size),
+
+        ]
+        if vm_info.data_disks:
+            for disk in vm_info.data_disks:
+                data.append(
+                    VmDetailsProperty(
+                        key=f"'{disk.get('name')}' Disk Size",
+                        value=disk.get("size")
+                    )
                 )
-                time.sleep(timeout)
-                retry += 1
+        return data
 
     def _prepare_vm_network_data(
         self,
@@ -108,6 +100,7 @@ class VMDetailsActions:
             is_predefined = str(vlan_id) in self._resource_conf.reserved_networks
             network_data = [
                 VmDetailsProperty(key="IP", value=iface.get("ipv4")),
+                VmDetailsProperty(key="IPv6", value=iface.get("ipv6")),
                 VmDetailsProperty(key="MAC Address", value=mac),
                 VmDetailsProperty(key="vNIC Name", value=iface.get("name")),
                 VmDetailsProperty(
@@ -115,7 +108,7 @@ class VMDetailsActions:
                 ),
                 VmDetailsProperty(
                     key="Firewall Enabled",
-                    value=str(int(iface.get("firewall", "0")) == 1),
+                    value=str(iface.get("firewall", "0") == "1"),
                 ),
             ]
 

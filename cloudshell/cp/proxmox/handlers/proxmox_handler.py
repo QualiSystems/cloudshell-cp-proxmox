@@ -10,7 +10,8 @@ from urllib.parse import urlencode
 
 import websocket
 from attrs import define
-from requests import Response
+from cloudshell.shell.core.driver_utils import GlobalLock
+from requests import Response, HTTPError
 
 from cloudshell.cp.proxmox.constants import (
     ADDRESS_TYPE,
@@ -27,9 +28,10 @@ from cloudshell.cp.proxmox.constants import (
 from cloudshell.cp.proxmox.exceptions import (
     InstanceIsNotRunningException,
     UnsuccessfulOperationException,
-    VmDoesNotExistException,
+    VmDoesNotExistException, BaseProxmoxException, ParamsException,
 )
 from cloudshell.cp.proxmox.handlers.rest_api_handler import ProxmoxAutomationAPI
+from cloudshell.cp.proxmox.models.instance_config import InstanceConfig
 from cloudshell.cp.proxmox.resource_config import ProxmoxResourceConfig
 from cloudshell.cp.proxmox.utils.instance_type import InstanceType
 from cloudshell.cp.proxmox.utils.power_state import PowerState
@@ -55,13 +57,14 @@ class ProxmoxHandler:
 
     @classmethod
     def from_config(
-        cls, conf: ProxmoxResourceConfig, instance_type: InstanceType = InstanceType.VM
+            cls, conf: ProxmoxResourceConfig,
+            instance_type: InstanceType = InstanceType.VM
     ) -> ProxmoxHandler:
         return cls.connect(conf.address, conf.user, conf.password, instance_type)
 
     @classmethod
     def connect(
-        cls, host: str, user: str, password: str, instance_type: InstanceType
+            cls, host: str, user: str, password: str, instance_type: InstanceType
     ) -> ProxmoxHandler:
         logger.info("Initializing Proxmox API client.")
         api = ProxmoxAutomationAPI(
@@ -79,6 +82,7 @@ class ProxmoxHandler:
     def vmid_to_node(self):
         return {res["vmid"]: res["node"] for res in self._obj.get_resources()}
 
+    @GlobalLock.lock
     def generate_new_vm_id(self) -> int:
         """Generate new Virtual Machine ID."""
         result = self._obj.get_next_id()
@@ -98,31 +102,33 @@ class ProxmoxHandler:
         raise VmDoesNotExistException(f"There is no VM with vmid {instance_id}")
 
     def start_instance(
-        self, instance_id: int, node: str = None, skip_check: bool = False
+            self, instance_id: int, node: str = None, skip_check: bool = False
     ) -> None:
         """Turn ON Virtual Machine by instance_id"""
         if not node:
             node = self.get_node_by_vmid(instance_id)
         logger.info(f"Node for VM {instance_id} is {node}")
-        if (
-            skip_check
-            or not self.get_instance_status(instance_id, node) == PowerState.RUNNING
-        ):
+        if (skip_check or not self.get_instance_status(instance_id, node) ==
+                              PowerState.RUNNING):
             upid = self._obj.start_instance(node=node, instance_id=instance_id)
-
-            self._task_waiter(
-                node=node,
-                upid=upid,
-                msg=f"Failed to start instance {instance_id} during {{attempt*timeout}} sec",
-            )
+            try:
+                self._task_waiter(
+                    node=node,
+                    upid=upid,
+                    msg=f"Failed to start instance {instance_id} during {{attempt*timeout}} sec",
+                )
+            except BaseProxmoxException as e:
+                if not self.get_instance_status(instance_id,
+                                                node) == PowerState.RUNNING:
+                    raise
 
     def stop_instance(
-        self,
-        instance_id: int,
-        soft: bool,
-        node: str = None,
-        max_retries: int = 5,
-        timeout: int = 5,
+            self,
+            instance_id: int,
+            soft: bool,
+            node: str = None,
+            max_retries: int = 5,
+            timeout: int = 5,
     ) -> None:
         """Turn OFF Instance by instance_id"""
         if not node:
@@ -139,7 +145,7 @@ class ProxmoxHandler:
                     node=node,
                     upid=upid,
                     msg=f"Failed to stop instance {instance_id} "
-                    f"during {{attempt*timeout}} sec",
+                        f"during {{attempt*timeout}} sec",
                 )
 
             status = self.get_instance_status(instance_id, node)
@@ -147,6 +153,148 @@ class ProxmoxHandler:
                 return
             max_retries -= 1
             time.sleep(timeout)
+
+    def get_node_interfaces(self, node):
+        """Get VLAN on Proxmox."""
+        try:
+            return self._obj.get_vlans(node=node)
+        except HTTPError as e:
+            if e.response.status_code == 400:
+                raise ParamsException(
+                    f"Interface VLANs not found on {node}."
+                ) from e
+            else:
+                raise
+
+    def get_vlans(self, node):
+        """Get VLAN on Proxmox."""
+        interfaces = self.get_node_interfaces(node)
+        return [x for x in interfaces if x.get("type", "") == "vlan"]
+
+    def get_bridges(self, node):
+        """Get VLAN on Proxmox."""
+        interfaces = self.get_node_interfaces(node)
+        return [x for x in interfaces if x.get("type", "") == "bridge"]
+
+    def _get_interface_priority(self, node):
+        return (max([x.get("priority", 0) for x in self.get_node_interfaces(node)]) +
+                1)
+
+    def create_vlan(self, node, vlan_id, br_name, vlan_name):
+        """Create VLAN on Proxmox."""
+        try:
+            vlans = self.get_vlans(node)
+            existing_vlan = next(
+                (x for x in vlans if x.get("iface", "") == vlan_name),
+                None
+            )
+            if existing_vlan:
+                return existing_vlan
+            data = {
+                'autostart': 1,
+                'iface': vlan_name,
+                "node": node,
+                'type': 'vlan',
+                'vlan-id': vlan_id,
+                'vlan-raw-device': br_name}
+            return self._obj.create_iface(node=node, iface_name=vlan_name, data=data)
+        except HTTPError as e:
+            if e.response.status_code == 400:
+                raise ParamsException(
+                    f"Interface VLAN {vlan_id} already exists on {node}."
+                ) from e
+            else:
+                raise
+
+    def apply_network_config(self, node):
+        """Apply network configuration on the node."""
+        try:
+            return self._obj.apply_network_config(node=node)
+        except HTTPError as e:
+            if e.response.status_code == 400:
+                raise ParamsException(
+                    f"Failed to apply network config on {node}."
+                ) from e
+            else:
+                raise
+
+    def create_bridge(
+            self,
+            node: str,
+            bridge_name: str,
+            interface: str,
+            bridge_vlan_aware: bool=False):
+        """Create Bridge on Proxmox."""
+        try:
+            brs = self.get_bridges(node)
+            existing_br = next(
+                (x for x in brs if x.get("iface", "") == bridge_name),
+                None
+            )
+            if existing_br:
+                return existing_br
+            data = {
+                'autostart': 1,
+                'bridge_ports': interface,
+                'iface': bridge_name,
+                "node": node,
+                'type': 'bridge'
+            }
+            if bridge_vlan_aware:
+                data["bridge_vlan_aware"] = 1
+            return self._obj.create_iface(node=node, iface_name=bridge_name, data=data)
+        except HTTPError as e:
+            if e.response.status_code == 400:
+                raise ParamsException(
+                    f"Interface bridge {bridge_name} already exists on {node}."
+                ) from e
+            else:
+                raise
+
+    def get_vnets(self):
+        """Get VLAN on Proxmox."""
+        try:
+            return self._obj.get_vnets()
+        except HTTPError as e:
+            if e.response.status_code == 400:
+                raise ParamsException(
+                    f"Vnets not found."
+                ) from e
+            else:
+                raise
+
+    def create_vnet(
+            self,
+            sdn_zone_name: str,
+            vnet_name: str,
+            vlan_id: int,
+            is_trunk: bool=False):
+        """Create Bridge on Proxmox."""
+        try:
+            vnets = self.get_vnets()
+            existing_vnet = next(
+                (x for x in vnets if x.get("vnet", "") == vnet_name),
+                None
+            )
+            if existing_vnet:
+                return existing_vnet
+            data = {
+                'zone': sdn_zone_name,
+                'vnet': vnet_name,
+            }
+            if vlan_id:
+                data["tag"] = vlan_id
+            if is_trunk:
+                data["vlanaware"] = 1
+
+            return self._obj.create_vnet(data=data)
+        except HTTPError as e:
+            if e.response.status_code == 400:
+                raise ParamsException(
+                    f"Interface vnet {vlan_id} already exists."
+                ) from e
+            else:
+                raise
 
     def delete_instance(self, instance_id: int) -> None:
         """Stop Virtual machine and delete it."""
@@ -219,7 +367,7 @@ class ProxmoxHandler:
             raise e
 
     def get_mac_address_by_interface_id(
-        self, instance_id: int, interface_id: int, node: str = None
+            self, instance_id: int, interface_id: int, node: str = None
     ) -> str:
         """Get MAC address of Virtual Machine interface."""
         try:
@@ -234,7 +382,7 @@ class ProxmoxHandler:
             raise e
 
     def get_instance_interface_type(
-        self, instance_id: int, interface_id: int = 0, node: str = None
+            self, instance_id: int, interface_id: int = 0, node: str = None
     ) -> str:
         """Get MAC address of Virtual Machine interface."""
         try:
@@ -296,10 +444,14 @@ class ProxmoxHandler:
 
                 return result
             else:
+                if guest_data is None:
+                    guest_data = {}
                 guest_ifaces = {
-                    x.get("hwaddr", "").lower(): x for x in guest_data.get("result", [])
+                    x.get("hwaddr", "").lower(): x for x in guest_data
                 }
                 for k, v in config.items():
+                    if not k.startswith("net"):
+                        continue
                     mac = v.get("mac")
                     ip_data = guest_ifaces.get(mac.lower(), {})
                     if mac:
@@ -309,11 +461,11 @@ class ProxmoxHandler:
                             "type": v.get("type"),
                             "tag": v.get("tag"),
                             "bridge": v.get("bridge"),
-                            "index": k.replace("net"),
+                            "index": k.replace("net", ""),
                             "guest_name": ip_data.get("name"),
                             "guest_mac": mac,
-                            "ipv4": ip_data.get("inet", "Undefined"),
-                            "ipv6": ip_data.get("inet6", "Undefined"),
+                            "ipv4": ip_data.get("inet", "NA"),
+                            "ipv6": ip_data.get("inet6", "NA"),
                         }
 
                 return result
@@ -323,6 +475,9 @@ class ProxmoxHandler:
                 f"Virtual machine with instance_id {instance_id} doesn't exist."
             )
             raise e
+
+    def get_instance(self, instance_id) -> InstanceConfig:
+        return InstanceConfig.from_proxmox_instance(self, instance_id)
 
     def get_instance_os(self, instance_id: int, node: str = None) -> str:
         """Get Virtual Machine Operation System details."""
@@ -342,12 +497,12 @@ class ProxmoxHandler:
             raise e
 
     def _task_waiter(
-        self,
-        node: str,
-        upid: str,
-        msg: str,
-        retries: int = RETRIES,
-        timeout: int = TIMEOUT,
+            self,
+            node: str,
+            upid: str,
+            msg: str,
+            retries: int = RETRIES,
+            timeout: int = TIMEOUT,
     ):
         """Check if the task finished and finished successfully."""
         status = "running"
@@ -364,18 +519,18 @@ class ProxmoxHandler:
             raise UnsuccessfulOperationException(msg)
 
     def attach_interface(
-        self,
-        network_bridge: str,
-        instance_id: int,
-        vlan_tag: int,
-        vnic_id: int,
-        interface_type: str = "virtio",
-        mac_address: str = None,
-        enable_firewall: bool = False,
+            self,
+            network_bridge: str,
+            instance_id: int,
+            vlan_tag: int,
+            vnic_id: int,
+            interface_type: str = "virtio",
+            mac_address: str = None,
+            enable_firewall: bool = False,
     ) -> str:
         """Attach interface to Virtual Machine."""
         node = self.get_node_by_vmid(instance_id)
-        data = f"{interface_type}"
+        data = ""
         if not mac_address:
             try:
                 mac_address = self.get_mac_address_by_interface_id(
@@ -383,14 +538,30 @@ class ProxmoxHandler:
                 )
             except VmDoesNotExistException:
                 mac_address = None
-        if mac_address:
-            data += f"={mac_address}"
+        if self._obj.instance_type == InstanceType.CONTAINER:
+            data = f"name=eth{vnic_id}"
+        else:
+            data = f"{interface_type}"
+            if mac_address:
+                data += f"={mac_address}"
+
         if enable_firewall is None:
             enable_firewall = False
         data += (
-            f",bridge={network_bridge},tag={vlan_tag},firewall={int(enable_firewall)}"
+            f",bridge={network_bridge}"
         )
-        if mac_address:
+        if vlan_tag:
+            data += (
+                f",tag={vlan_tag}"
+            )
+        data += (
+            f",firewall={int(enable_firewall)}"
+        )
+        if self._obj.instance_type == InstanceType.CONTAINER:
+            data += ",ip=dhcp,ip6=dhcp"
+        logger.info(f"{vnic_id} on {instance_id} will be configured with {data}")
+
+        if mac_address or self._obj.instance_type == InstanceType.VM:
             self._obj.update_interface(
                 node=node, instance_id=instance_id, interface_id=vnic_id, data=data
             )
@@ -403,10 +574,20 @@ class ProxmoxHandler:
             instance_id=instance_id, interface_id=vnic_id, node=node
         )
 
+    def get_instance_config(
+            self,
+            instance_id: int,
+    ) -> dict:
+        """Get Instance configuration."""
+        node = self.get_node_by_vmid(instance_id)
+        return self._obj.get_instance_config(
+            node=node, instance_id=instance_id
+        )
+
     def detach_interface(
-        self,
-        instance_id: int,
-        mac: int,
+            self,
+            instance_id: int,
+            mac: int,
     ) -> str:
         """Attach interface to Virtual Machine."""
         interface_id = None
@@ -447,10 +628,10 @@ class ProxmoxHandler:
         return [snap["name"] for snap in data]
 
     def create_snapshot(
-        self,
-        instance_id: int,
-        name: str,
-        dump_memory: bool = False,
+            self,
+            instance_id: int,
+            name: str,
+            dump_memory: bool = False,
     ) -> str:
         """Create Virtual Machine snapshot."""
         node = self.get_node_by_vmid(instance_id)
@@ -487,15 +668,16 @@ class ProxmoxHandler:
         )
 
     def clone_instance(
-        self,
-        instance_id: int,
-        instance_node: str,
-        instance_name: str,
-        new_instance_id: int = None,
-        snapshot: str = None,
-        full: bool = None,
-        target_storage: str = None,
-        target_node: str = None,
+            self,
+            instance_id: int,
+            instance_node: str,
+            instance_name: str,
+            new_instance_id: int = None,
+            snapshot: str = None,
+            full: bool = None,
+            target_storage: str = None,
+            target_node: str = None,
+            copy_src_uuid: bool = False,
     ) -> (int, str):
         """Clone Virtual Machine."""
         # ToDo review performance of this method
@@ -511,29 +693,19 @@ class ProxmoxHandler:
             full=full,
             target_storage=target_storage,
             target_node=target_node,
+            copy_src_uuid=copy_src_uuid,
         )
-
-        # self._task_waiter(
-        #     node=instance_node,
-        #     upid=upid,
-        #     msg=f"Failed to clone Instance {instance_name} "
-        #         f"during {{attempt*timeout}} seconds.",
-        #     retries=60,
-        #     timeout=10
-        # )
-        # self.get_node_by_vmid(int(new_instance_id))
-        # self.get_instance_status(new_instance_id, node=target_node or node)
 
         return int(new_instance_id), upid
 
     def wait_for_deploy_to_complete(
-        self, instance_node: str, upid: str, instance_name: str
+            self, instance_node: str, upid: str, instance_name: str
     ):
         self._task_waiter(
             node=instance_node,
             upid=upid,
             msg=f"Failed to clone Instance {instance_name} "
-            f"during {{attempt*timeout}} seconds.",
+                f"during {{attempt*timeout}} seconds.",
             retries=60,
             timeout=10,
         )

@@ -29,6 +29,7 @@ class ProxmoxAttributeNames:
     shared_storage = "Shared Storage"
     shutdown_method = "Shutdown Method"
     default_bridge = "Default Bridge"
+    default_sdn_zone = "Default SDN Zone"
     reserved_networks = "Reserved Networks"
 
 
@@ -40,6 +41,7 @@ class ProxmoxResourceConfig(BaseConfig):
     password: str = attr(ATTR_NAMES.password, is_password=True)
     shared_storage: str = attr(ATTR_NAMES.shared_storage)
     default_bridge: str = attr(ATTR_NAMES.default_bridge)
+    default_sdn_zone: str = attr(ATTR_NAMES.default_sdn_zone)
     reserved_networks: str = attr(ATTR_NAMES.reserved_networks)
     shutdown_method: ShutdownMethod = attr(ATTR_NAMES.shutdown_method)
 

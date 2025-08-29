@@ -9,3 +9,4 @@ cloudshell-logging~=2.1
 pydantic~=2.4
 cloudshell-shell-connectivity-flow~=4.2
 cloudshell-shell-standards~=2.0
+cloudshell-cli~=5.0

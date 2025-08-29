@@ -7,8 +7,13 @@ from contextlib import nullcontext
 from datetime import datetime, timedelta
 from typing import TYPE_CHECKING
 
+from cloudshell.cli.service.cli import CLI
+from cloudshell.cli.service.command_mode import CommandMode
+
+from cloudshell.cp.proxmox.cli.websocket_session import WebSocketSession
 from cloudshell.cp.proxmox.exceptions import VMIPNotFoundException
 from cloudshell.cp.proxmox.handlers.proxmox_handler import ProxmoxHandler
+from cloudshell.cp.proxmox.utils.instance_type import InstanceType
 
 if TYPE_CHECKING:
     from cloudshell.cp.core.cancellation_manager import CancellationContextManager
@@ -19,6 +24,7 @@ logger = logging.getLogger(__name__)
 
 
 class VMNetworkActions:
+    IP_REGEX = re.compile(r"\b(?:\d{1,3}\.){3}\d{1,3}\b")
     QUALI_NETWORK_PREFIX = "QS_"
     DEFAULT_IP_REGEX = ".*"
     DEFAULT_IP_DELAY = 5
@@ -54,22 +60,51 @@ class VMNetworkActions:
         self,
         api: ProxmoxHandler,
         vm_id: int,
+        cli: CLI | None = None,
         ip_regex: str | None = None,
         timeout: int = 0,
     ) -> str:
         logger.info(f"Getting IP address for the VM {vm_id} from the Proxmox")
         timeout_time = datetime.now() + timedelta(seconds=timeout)
+        instance = api.get_instance(vm_id)
         is_ip_pass_regex = get_ip_regex_match_func(ip_regex)
 
         while True:
             with self._cancellation_manager:
                 ip = self._find_vm_ip(api, vm_id, is_ip_pass_regex)
+                if instance.instance_type == InstanceType.CONTAINER:
+                    ip = self._find_ip_over_cli(cli, api, vm_id, is_ip_pass_regex)
             if ip:
                 break
+
             if datetime.now() > timeout_time:
                 raise VMIPNotFoundException(ip_regex)
             time.sleep(self.DEFAULT_IP_DELAY)
         return ip
+
+    def _find_ip_over_cli(self, cli, api, instance_id, is_ip_pass_regex) -> str:
+        node = api.get_node_by_vmid(instance_id)
+        session_types = [
+            WebSocketSession(
+                host=self._resource_conf.address,
+                username=self._resource_conf.user,
+                password=self._resource_conf.password,
+                proxmox_handler=api,
+                node=node,
+            )
+        ]
+        mode = CommandMode(r"#\s*$")
+
+        with cli.get_session(session_types, mode) as cli_service:
+            ips_data = cli_service.send_command(f'lxc-info -i {instance_id}',
+                                             logger=logger,
+                                           timeout=300)
+            ips = list(self.IP_REGEX.findall(ips_data))
+            for ip in ips:
+                if is_ip_pass_regex(ip):
+                    logger.debug(f"Found IP {ip} on {instance_id}")
+                    return ip
+            return ips[0]
 
 
 def get_ip_regex_match_func(ip_regex=None) -> callable[[str | None], bool]:

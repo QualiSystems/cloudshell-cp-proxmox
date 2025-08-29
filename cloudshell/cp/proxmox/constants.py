@@ -8,12 +8,15 @@ STATIC_SHELL_NAME = "Generic Static Proxmox VM 2G"
 VM_FROM_VM_DEPLOYMENT_PATH = f"{SHELL_NAME}.Proxmox Instance From VM 2G"
 VM_FROM_TEMPLATE_DEPLOYMENT_PATH = f"{SHELL_NAME}.Proxmox Instance From Template 2G"
 CONTAINER_FROM_IMAGE_DEPLOYMENT_PATH = (
-    f"{SHELL_NAME}.Proxmox Instance From " f"Container Image 2G"
+    f"{SHELL_NAME}.Proxmox Instance From Container Image 2G"
 )
 VM_FROM_QEMU_DEPLOYMENT_PATH = f"{SHELL_NAME}.Proxmox Instance From QEMU Image 2G"
 CONTAINER_FROM_CONTAINER_DEPLOYMENT_PATH = (
-    f"{SHELL_NAME}.Proxmox Instance From " f"Container 2G"
+    f"{SHELL_NAME}.Proxmox Instance From Container 2G"
 )
+
+VLAN_TEMPLATE = "qsvlan{vlan_id}"
+BRIDGE_TEMPLATE = "{vlan_name}br"
 
 COOKIES = "PVEAuthCookie"
 TOKEN = "CSRFPreventionToken"
@@ -35,7 +38,8 @@ CI_PASSWORD = "cipassword"
 
 INSTANCE_CFG_TAGS = "tags"
 INSTANCE_CFG_DESCRIPTION = "description"
+INSTANCE_ARGS = "args"
 
-INSTANCE_CFG_EXC_KEYS = [INSTANCE_CFG_TAGS, INSTANCE_CFG_DESCRIPTION]
+INSTANCE_CFG_EXC_KEYS = [INSTANCE_CFG_TAGS, INSTANCE_CFG_DESCRIPTION, INSTANCE_ARGS]
 
 MAC_REGEXP = re.compile(r"([0-9A-Fa-f]{2}[:-]){5}([0-9A-Fa-f]{2})+")

@@ -2,14 +2,19 @@ from __future__ import annotations
 
 import logging
 import time
+from contextlib import suppress
 from typing import TYPE_CHECKING
 
+from attr import field
 from attrs import define
 
+from cloudshell.cp.proxmox.exceptions import BaseProxmoxException
+from cloudshell.cp.proxmox.utils.instance_type import InstanceType
 from cloudshell.cp.proxmox.utils.power_state import PowerState
+from cloudshell.cp.proxmox.handlers.proxmox_handler import ProxmoxHandler
 
 if TYPE_CHECKING:
-    from cloudshell.cp.proxmox.handlers.proxmox_handler import ProxmoxHandler
+
     from cloudshell.cp.proxmox.models.deployed_app import BaseProxmoxDeployedApp
     from cloudshell.cp.proxmox.resource_config import (
         ProxmoxResourceConfig,
@@ -21,9 +26,18 @@ logger = logging.getLogger(__name__)
 
 @define
 class ProxmoxPowerFlow:
-    _si: ProxmoxHandler
     _deployed_app: BaseProxmoxDeployedApp
     _resource_config: ProxmoxResourceConfig
+    _si: ProxmoxHandler = field(init=False)
+
+    def __attrs_post_init__(self):
+        self._si = ProxmoxHandler.from_config(self._resource_config)
+        instance_conf = None
+        with suppress(BaseProxmoxException):
+            instance_conf = self._si.get_instance(int(self._deployed_app.vmdetails.uid))
+        if not instance_conf:
+            self._si = ProxmoxHandler.from_config(self._resource_config,
+                                             InstanceType.CONTAINER)
 
     def power_on(self):
         """Power ON Virtual Machine."""

@@ -67,3 +67,11 @@ class InvalidOrchestrationType(BaseProxmoxException):
     def __init__(self, type_: str):
         msg = f"Invalid orchestration type '{type_}', expect {SNAPSHOT_TYPE}"
         super().__init__(msg)
+
+
+class SubnetCidrFormatError(BaseProxmoxException):
+    def __init__(self):
+        super().__init__(
+            "Subnet CIDR format is wrong. Format - CIDR[;Gateway][;First_IP-Last_IP]. "
+            "For example, `192.168.10.0/24;192.168.10.1;192.168.10.30-192.168.10.50`"
+        )

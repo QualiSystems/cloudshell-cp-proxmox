@@ -1,10 +1,12 @@
 from __future__ import annotations
 
+import json
 import logging
 import ssl
 import time
 from abc import abstractmethod
 from collections.abc import Callable
+from contextlib import suppress
 from urllib.parse import quote
 
 import requests
@@ -61,13 +63,20 @@ class BaseAPIClient:
         try:
             raise_for_status and res.raise_for_status()
         except requests.exceptions.HTTPError as caught_err:
+            http_code = caught_err.response.status_code
             if res is not None and res.content:
+                message = res.content
+                with suppress(AttributeError):
+                    message = json.loads(res.content.decode())
+                    if message:
+                        message = message.get("errors", {})
                 logger.error(f"HTTP Request {url} Error: {res.content}")
+                message = f"{http_code}: {message}"
             else:
                 logger.exception(f"HTTP Request {url} Error: {caught_err}")
-            http_code = caught_err.response.status_code
+                message = caught_err
             err = http_error_map.get(http_code, BaseProxmoxException)
-            raise err from caught_err
+            raise err(message) from caught_err
         return res
 
     def _do_get(
@@ -141,6 +150,7 @@ class ProxmoxAutomationAPI(BaseAPIClient):
                             exception = e
                             time.sleep(timeout)
                             attempt += 1
+                            logger.error(f"Command {decorated} failed")
 
                     if raise_on_timeout:
                         if exception:
@@ -156,7 +166,7 @@ class ProxmoxAutomationAPI(BaseAPIClient):
 
         @classmethod
         def get_instance_data(
-            cls, retries: int = 6, timeout: int = 5, raise_on_timeout: bool = True
+            cls, retries: int = 2, timeout: int = 1, raise_on_timeout: bool = True
         ):
             def wrapper(decorated):
                 def inner(*args, **kwargs):
@@ -165,6 +175,7 @@ class ProxmoxAutomationAPI(BaseAPIClient):
                     while attempt < retries:
                         try:
                             response = decorated(*args, **kwargs).json()["data"]
+                            logger.error(f"Command {response} failed")
                             return convert_instance_config(response)
                         except Exception as e:
                             exception = e
@@ -275,17 +286,17 @@ class ProxmoxAutomationAPI(BaseAPIClient):
         )
 
     @Decorators.get_data()
-    def get_resources(self, r_type: str = None) -> requests.Response:
+    def get_resources(self, r_type: str = "vm") -> requests.Response:
         """"""
         error_map = {
             400: ParamsException,
             401: AuthAPIException,
         }
-        if not r_type:
-            if self.instance_type == InstanceType.VM:
-                r_type = "vm"
-            else:
-                r_type = "lxc"
+        # if not r_type:
+        #     if self.instance_type == InstanceType.VM:
+        #         r_type = "vm"
+        #     else:
+        #         r_type = "lxc"
         # self.session.headers.update({})
 
         return self._do_get(
@@ -306,6 +317,121 @@ class ProxmoxAutomationAPI(BaseAPIClient):
         return self._do_get(
             path=f"cluster/resources?type={r_type}" if r_type else "any_bridge",
             http_error_map=error_map,
+            cookies={COOKIES: self.ticket},
+        )
+
+    # @Decorators.get_data()
+    # def get_vlans(self, r_type: str = None) -> requests.Response:
+    #     """"""
+    #     error_map = {
+    #         400: ParamsException,
+    #         401: AuthAPIException,
+    #     }
+    #     # self.session.headers.update({})
+    #
+    #     return self._do_get(
+    #         path=f"cluster/resources?type={r_type}" if r_type else "any_bridge",
+    #         http_error_map=error_map,
+    #         cookies={COOKIES: self.ticket},
+    #     )
+        # """"""
+        # error_map = {
+        #     400: ParamsException,
+        #     401: AuthAPIException,
+        # }
+        # # self.session.headers.update({})
+        #
+        # return self._do_get(
+        #     path=f"cluster/resources?type={r_type}" if r_type else "any_vlan",
+        #     http_error_map=error_map,
+        #     cookies={COOKIES: self.ticket},
+        # )
+
+    @Decorators.get_data()
+    def get_vlans(self, node):
+        """Get VLAN on Proxmox."""
+        error_map = {
+            400: ParamsException,
+            401: AuthAPIException,
+        }
+
+        return self._do_get(
+            path=f"nodes/{node}/network",
+            http_error_map=error_map,
+            cookies={COOKIES: self.ticket},
+        )
+
+    @Decorators.get_data()
+    def create_iface(self, node, iface_name, data) -> requests.Response:
+        """Create VLAN on Proxmox."""
+        error_map = {
+            400: ParamsException,
+            401: AuthAPIException,
+        }
+
+        with suppress(ParamsException):  # Vlan creation returns error.
+            self._do_post(
+                # path=f"nodes/{node}/network?node={node}&iface={data.get('iface')}&type=vlan&vlan-id={data.get('vlan-id')}&vlan-raw-device={data.get('vlan-raw-device')}&",
+                path=f"nodes/{node}/network",
+                json=data,
+                http_error_map=error_map,
+                cookies={COOKIES: self.ticket},
+            )
+        #Checking vlan created.
+        iface = self._do_get(
+            path=f"nodes/{node}/network/{iface_name}",
+            http_error_map=error_map,
+            cookies={COOKIES: self.ticket},
+        )
+        return iface
+
+    @Decorators.get_data()
+    def get_vnets(self):
+        """Get VLAN on Proxmox."""
+        error_map = {
+            400: ParamsException,
+            401: AuthAPIException,
+        }
+
+        return self._do_get(
+            path=f"cluster/sdn/vnets",
+            http_error_map=error_map,
+            cookies={COOKIES: self.ticket},
+        )
+
+    @Decorators.get_data()
+    def create_vnet(self, data) -> requests.Response:
+        """Create VLAN on Proxmox."""
+        error_map = {
+            400: ParamsException,
+            401: AuthAPIException,
+        }
+
+        self._do_post(
+            path=f"cluster/sdn/vnets",
+            json=data,
+            http_error_map=error_map,
+            cookies={COOKIES: self.ticket},
+        )
+        #Checking vlan created.
+        iface = self._do_get(
+            path=f"cluster/sdn/vnets/{data.get('vnet')}",
+            http_error_map=error_map,
+            cookies={COOKIES: self.ticket},
+        )
+        return iface
+
+    def apply_network_config(self, node):
+        """Apply network config on Proxmox node."""
+        error_map = {
+            400: ParamsException,
+            401: AuthAPIException,
+        }
+
+        self._do_put(
+            path=f"nodes/{node}/network",
+            http_error_map=error_map,
+            json={"node": node},
             cookies={COOKIES: self.ticket},
         )
 
@@ -371,7 +497,7 @@ class ProxmoxAutomationAPI(BaseAPIClient):
             cookies={COOKIES: self.ticket},
         )
 
-    @Decorators.get_data()
+    @Decorators.get_data(retries=2)
     def attach_interface(
         self,
         node: str,
@@ -384,7 +510,6 @@ class ProxmoxAutomationAPI(BaseAPIClient):
             400: ParamsException,
             401: AuthAPIException,
         }
-
         response = self._do_put(
             path=f"nodes/{node}/{self.instance_type.value}/{instance_id}/config",
             http_error_map=error_map,
@@ -393,7 +518,7 @@ class ProxmoxAutomationAPI(BaseAPIClient):
         )
         return response
 
-    @Decorators.get_data()
+    @Decorators.get_data(timeout=7)
     def update_interface(
         self,
         node: str,
@@ -406,12 +531,20 @@ class ProxmoxAutomationAPI(BaseAPIClient):
             400: ParamsException,
             401: AuthAPIException,
         }
-        return self._do_post(
-            path=f"nodes/{node}/{self.instance_type.value}/{instance_id}/config",
-            http_error_map=error_map,
-            json={f"net{interface_id}": data},
-            cookies={COOKIES: self.ticket},
-        )
+        if self.instance_type == InstanceType.VM:
+            return self._do_post(
+                path=f"nodes/{node}/qemu/{instance_id}/config",
+                http_error_map=error_map,
+                json={f"net{interface_id}": data},
+                cookies={COOKIES: self.ticket},
+            )
+        else:
+            return self._do_put(
+                path=f"nodes/{node}/lxc/{instance_id}/config",
+                http_error_map=error_map,
+                json={f"net{interface_id}": data},
+                cookies={COOKIES: self.ticket},
+            )
 
     @Decorators.get_data()
     def get_next_id(self) -> requests.Response:
@@ -521,21 +654,29 @@ class ProxmoxAutomationAPI(BaseAPIClient):
         full: bool = None,
         target_storage: str = None,
         target_node: str = None,
+        copy_src_uuid: bool = False,
     ) -> requests.Response:
         """Create VM."""
         error_map = {
             400: ParamsException,
             401: AuthAPIException,
+            500: UnsuccessfulOperationException
         }
 
         data = {"newid": new_instance_id, "node": node, "vmid": instance_id}
 
         if name:
-            data["name"] = name.replace("_", "-")
+            if self.instance_type == InstanceType.CONTAINER:
+                data["hostname"] = name.replace("_", "-")
+            else:
+                data["name"] = name.replace("_", "-")
 
         if snapshot:
             data["snapname"] = snapshot
-
+        if copy_src_uuid:
+            bios = self.get_instance_config(node, instance_id).get("bios_uuid", None)
+            if bios:
+                data["bios_uuid"] = bios
         # Create a full copy of all disks.
         # This is always done when you clone a normal VM.
         # For VM templates, we try to create a linked clone by default.
@@ -550,6 +691,7 @@ class ProxmoxAutomationAPI(BaseAPIClient):
         if target_node:
             data["target"] = target_node
 
+        logger.info(data)
         upid = self._do_post(
             path=f"nodes/{node}/{self.instance_type.value.lower()}/{instance_id}/clone",
             json=data,
@@ -742,6 +884,7 @@ class ProxmoxAutomationAPI(BaseAPIClient):
         error_map = {
             400: ParamsException,
             401: AuthAPIException,
+            500: BaseProxmoxException,
         }
 
         return self._do_get(
