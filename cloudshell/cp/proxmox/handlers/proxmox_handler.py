@@ -461,7 +461,7 @@ class ProxmoxHandler:
         upid = self._obj.create_snapshot(
             node=node,
             instance_id=instance_id,
-            name=name,
+            snapshot_name=name,
             vm_state=int((vm_status == "running") and dump_memory),
         )
 
@@ -477,7 +477,7 @@ class ProxmoxHandler:
         node = self.get_node_by_vmid(instance_id)
 
         upid = self._obj.restore_from_snapshot(
-            node=node, instance_id=instance_id, name=name
+            node=node, instance_id=instance_id, snapshot_name=name
         )
 
         self._task_waiter(
@@ -577,7 +577,7 @@ class ProxmoxHandler:
         """Delete Virtual Machine snapshot."""
         node = self.get_node_by_vmid(instance_id)
 
-        upid = self._obj.delete_snapshot(node=node, instance_id=instance_id, name=name)
+        upid = self._obj.delete_snapshot(node=node, instance_id=instance_id, snapshot_name=name)
 
         self._task_waiter(
             node=node,
