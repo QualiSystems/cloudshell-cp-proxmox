@@ -462,7 +462,7 @@ class ProxmoxHandler:
             node=node,
             instance_id=instance_id,
             snapshot_name=name,
-            vm_state=int((vm_status == "running") and dump_memory),
+            instance_state=int((vm_status == "running") and dump_memory),
         )
 
         self._task_waiter(
