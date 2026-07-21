@@ -39,5 +39,15 @@ def create_app(state_path, node_name="pve", action_delay=0.0):
     def _handle_not_found(err):
         return jsonify({"data": None, "message": "no such resource"}), 404
 
+    @app.after_request
+    def _close_connection(response):
+        # Werkzeug's dev server, when serving HTTPS (ssl_context="adhoc"), can
+        # intermittently reset persistent connections that clients try to reuse
+        # -- .NET's Invoke-RestMethod hits this reliably, curl mostly doesn't.
+        # Telling every client to close after each response avoids the flaky
+        # keep-alive path; the perf cost is irrelevant for a dev-only emulator.
+        response.headers["Connection"] = "close"
+        return response
+
     register_routes(app)
     return app

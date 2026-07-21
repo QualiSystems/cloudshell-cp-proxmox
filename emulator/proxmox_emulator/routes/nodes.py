@@ -7,7 +7,7 @@ bp = Blueprint("nodes", __name__)
 
 @bp.route("/nodes", methods=["GET"])
 def list_nodes():
-    return jsonify({"data": [get_state().node_summary()]})
+    return jsonify({"data": get_state().node_summary()})
 
 
 @bp.route("/nodes/<node>/status", methods=["GET"])

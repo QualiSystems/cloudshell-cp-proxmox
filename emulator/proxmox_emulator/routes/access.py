@@ -3,11 +3,14 @@ import time
 from flask import Blueprint, jsonify, make_response, request
 
 from ..errors import ProxmoxApiError
+from .debug import STATE_PATH as DEBUG_STATE_PATH
 
 bp = Blueprint("access", __name__)
 
 # Endpoints reachable with no prior authentication, matching the real API.
-OPEN_PATHS = {"/api2/json/access/ticket", "/api2/json/version"}
+# The debug state dump is also unauthenticated -- it's a local dev tool, not
+# part of the emulated API surface, so it doesn't need a Proxmox ticket/cookie.
+OPEN_PATHS = {"/api2/json/access/ticket", "/api2/json/version", DEBUG_STATE_PATH}
 
 
 @bp.route("/version", methods=["GET"])
