@@ -6,15 +6,13 @@ from typing import TYPE_CHECKING
 
 from attrs import define
 
+from cloudshell.cp.proxmox.resource_config import ShutdownMethod
 from cloudshell.cp.proxmox.utils.power_state import PowerState
 
 if TYPE_CHECKING:
     from cloudshell.cp.proxmox.handlers.proxmox_handler import ProxmoxHandler
     from cloudshell.cp.proxmox.models.deployed_app import BaseProxmoxDeployedApp
-    from cloudshell.cp.proxmox.resource_config import (
-        ProxmoxResourceConfig,
-        ShutdownMethod,
-    )
+    from cloudshell.cp.proxmox.resource_config import ProxmoxResourceConfig
 
 logger = logging.getLogger(__name__)
 
