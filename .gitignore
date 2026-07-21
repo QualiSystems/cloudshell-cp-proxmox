@@ -67,3 +67,7 @@ target/
 /vnc_websocket.py
 /_deploy.py
 .venv/
+
+# Proxmox emulator local persisted state
+emulator/data/*.json
+
