@@ -162,6 +162,70 @@ class ProxmoxHandler:
                 f"Skip deleting."
             )
 
+    def get_instance_name(self, instance_id: int, node: str = None) -> str | None:
+        """Get the current Proxmox VM name for an instance."""
+        try:
+            if not node:
+                node = self.get_node_by_vmid(instance_id)
+            data = self._obj.get_instance_config(node=node, instance_id=instance_id)
+            name = data.get("name")
+            if isinstance(name, str):
+                return name
+            return None
+        except VmDoesNotExistException as e:
+            logger.error(
+                f"Virtual machine with instance_id {instance_id} doesn't exist."
+            )
+            raise e
+
+    def delete_instance_if_name_matches(
+        self, instance_id: int, expected_name: str | None
+    ) -> None:
+        """Delete a VM only when the current Proxmox name matches the expected one."""
+        normalized_expected_name = self._normalize_instance_name(expected_name)
+        if not normalized_expected_name:
+            logger.warning(
+                "Skipping delete for instance %s because no expected VM name is "
+                "available to verify identity.",
+                instance_id,
+            )
+            return
+
+        try:
+            node = self.get_node_by_vmid(instance_id)
+            current_name = self.get_instance_name(instance_id=instance_id, node=node)
+            normalized_current_name = self._normalize_instance_name(current_name)
+
+            if normalized_current_name != normalized_expected_name:
+                logger.warning(
+                    "Skipping delete for instance %s because VMID was reused. "
+                    "Expected Proxmox name '%s' but found '%s'.",
+                    instance_id,
+                    normalized_expected_name,
+                    normalized_current_name,
+                )
+                return
+
+            logger.info(f"Stopping Instance {instance_id}")
+            self.stop_instance(instance_id=instance_id, soft=False, node=node)
+            logger.info(
+                "Deleting Instance %s after confirming name '%s'",
+                instance_id,
+                normalized_current_name,
+            )
+            self._obj.delete_instance(node=node, instance_id=instance_id)
+        except VmDoesNotExistException:
+            logger.info(
+                f"Virtual machine with instance_id {instance_id} doesn't exist. "
+                f"Skip deleting."
+            )
+
+    @staticmethod
+    def _normalize_instance_name(name: str | None) -> str | None:
+        if not name or not isinstance(name, str):
+            return None
+        return name.strip().replace("_", "-")
+
     def get_instance_status(self, instance_id: int, node: str = None) -> str:
         """Get Virtual Machine status."""
         try:
@@ -577,7 +641,9 @@ class ProxmoxHandler:
         """Delete Virtual Machine snapshot."""
         node = self.get_node_by_vmid(instance_id)
 
-        upid = self._obj.delete_snapshot(node=node, instance_id=instance_id, snapshot_name=name)
+        upid = self._obj.delete_snapshot(
+            node=node, instance_id=instance_id, snapshot_name=name
+        )
 
         self._task_waiter(
             node=node,

@@ -122,6 +122,7 @@ class AbstractProxmoxDeployFlow(AbstractDeployFlow):
                 "refresh_ip_timeout": deploy_app.refresh_ip_timeout,
                 "auto_power_off": deploy_app.auto_power_off,
                 "auto_delete": deploy_app.auto_delete,
+                "proxmox_vm_name": instance_name,
             },
             deployedAppAttributes=self._prepare_app_attrs(deploy_app, deployed_vm_id),
         )
