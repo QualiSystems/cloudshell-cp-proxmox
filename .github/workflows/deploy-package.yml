@@ -1,4 +1,4 @@
-name: deploy package
+name: deploy_flow package
 on:
   release:
     types: [ published ]
@@ -7,5 +7,5 @@ jobs:
     uses: QualiSystems/.github/.github/workflows/package-tox-py-37-39.yml@master
   pypi-deploy:
     needs: tox-ci
-    uses: QualiSystems/.github/.github/workflows/package-deploy-pypi.yml@master
+    uses: QualiSystems/.github/.github/workflows/package-deploy_flow-pypi.yml@master
     secrets: inherit
