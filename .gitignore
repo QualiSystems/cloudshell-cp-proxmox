@@ -66,3 +66,4 @@ target/
 
 /vnc_websocket.py
 /_deploy.py
+.venv/
