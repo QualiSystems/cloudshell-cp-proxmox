@@ -9,6 +9,7 @@ from cloudshell.cp.core.request_actions.models import (
     Attribute,
     DeployAppResult,
     VmDetailsData,
+    VmDetailsProperty,
 )
 from cloudshell.cp.core.rollback import RollbackCommandsManager
 from cloudshell.cp.core.utils.name_generator import NameGenerator
@@ -19,6 +20,12 @@ from cloudshell.cp.proxmox.models.deploy_app import BaseProxmoxDeployApp
 from cloudshell.cp.proxmox.resource_config import ProxmoxResourceConfig
 
 logger = logging.getLogger(__name__)
+
+# Persisted in vmDetailsData so it comes back via deployed_app.vmdetails.vm_custom_params
+# on every later lifecycle call (Deploy doesn't get a second chance to hand this to
+# Delete directly - deployedAppAdditionalData and vmName are never round-tripped back
+# into the DeployedApp CloudShell reconstructs for PowerOff/Delete/etc).
+PROXMOX_VM_NAME_PARAM = "Proxmox VM Name"
 
 
 class AbstractProxmoxDeployFlow(AbstractDeployFlow):
@@ -109,6 +116,11 @@ class AbstractProxmoxDeployFlow(AbstractDeployFlow):
             deployed_vm_id=deployed_vm_id,
             deploy_app=deploy_app,
         )
+        vm_details_data.vmInstanceData.append(
+            VmDetailsProperty(
+                key=PROXMOX_VM_NAME_PARAM, value=instance_name, hidden=True
+            )
+        )
 
         logger.info(f"Prepared VM details: {vm_details_data}")
 
@@ -117,13 +129,6 @@ class AbstractProxmoxDeployFlow(AbstractDeployFlow):
             vmUuid=str(deployed_vm_id),
             vmName=instance_name,
             vmDetailsData=vm_details_data,
-            deployedAppAdditionalData={
-                "ip_regex": deploy_app.ip_regex,
-                "refresh_ip_timeout": deploy_app.refresh_ip_timeout,
-                "auto_power_off": deploy_app.auto_power_off,
-                "auto_delete": deploy_app.auto_delete,
-                "proxmox_vm_name": instance_name,
-            },
             deployedAppAttributes=self._prepare_app_attrs(deploy_app, deployed_vm_id),
         )
 
